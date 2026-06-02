@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title> NabhoBazaar — Audit Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════
+   CSS VARIABLES — THEMING
+   ══════════════════════════════════════════════ */
+:root {
+  /* Light Mode — Japanese Pastel */
+  --bg-page: #f5f0eb;
+  --bg-card: #ffffff;
+  --bg-card-alt: #faf7f4;
+  --bg-header: linear-gradient(135deg, #e8ddd3 0%, #f0e6db 100%);
+  --text-primary: #2c2420;
+  --text-secondary: #6b5e54;
+  --text-muted: #9c8e82;
+  --border: #e8ddd3;
+  --border-light: #f0e6db;
+  --accent: #c47d5a;
+  --accent-light: #e8a88a;
+  --accent-bg: rgba(196, 125, 90, 0.08);
+  --success: #5a8a6a;
+  --success-bg: rgba(90, 138, 106, 0.08);
+  --warning: #c49a5a;
+  --warning-bg: rgba(196, 154, 90, 0.08);
+  --danger: #c45a5a;
+  --danger-bg: rgba(196, 90, 90, 0.08);
+  --info: #5a7a9a;
+  --info-bg: rgba(90, 122, 154, 0.08);
+  --shadow-sm: 0 1px 3px rgba(44, 36, 32, 0.04);
+  --shadow-md: 0 4px 12px rgba(44, 36, 32, 0.06);
+  --shadow-lg: 0 8px 32px rgba(44, 36, 32, 0.08);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --bg-page: #0f0d0b;
+  --bg-card: #1a1714;
+  --bg-card-alt: #211e1a;
+  --bg-header: linear-gradient(135deg, #1a1714 0%, #211e1a 100%);
+  --text-primary: #e8ddd3;
+  --text-secondary: #a89888;
+  --text-muted: #6b5e54;
+  --border: #2c2420;
+  --border-light: #211e1a;
+  --accent: #e8a88a;
+  --accent-light: #c47d5a;
+  --accent-bg: rgba(232, 168, 138, 0.1);
+  --success: #7aba8a;
+  --success-bg: rgba(122, 186, 138, 0.1);
+  --warning: #e8ba7a;
+  --warning-bg: rgba(232, 186, 122, 0.1);
+  --danger: #e87a7a;
+  --danger-bg: rgba(232, 122, 122, 0.1);
+  --info: #7a9aba;
+  --info-bg: rgba(122, 154, 186, 0.1);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ══════════════════════════════════════════════
+   BASE
+   ══════════════════════════════════════════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', 'Noto Sans JP', -apple-system, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.6;
+  transition: background var(--transition), color var(--transition);
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════════════
+   HEADER
+   ══════════════════════════════════════════════ */
+.header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: white;
+  font-weight: 700;
+}
+
+.header-title h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.header-title p {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.date-picker {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.date-picker:hover {
+  border-color: var(--accent);
+}
+
+.theme-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all var(--transition);
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  transform: rotate(15deg);
+}
+
+.refresh-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all var(--transition);
+}
+
+.refresh-btn:hover {
+  border-color: var(--accent);
+}
+
+.refresh-btn.spinning svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════════════════════════════════════════
+   MAIN LAYOUT
+   ══════════════════════════════════════════════ */
+.main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+/* ══════════════════════════════════════════════
+   STATUS BANNER
+   ══════════════════════════════════════════════ */
+.status-banner {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-dot.clean { background: var(--success); }
+.status-dot.warning { background: var(--warning); }
+.status-dot.error { background: var(--danger); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+.status-text {
+  flex: 1;
+}
+
+.status-text h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.status-text p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ══════════════════════════════════════════════
+   KPI GRID
+   ══════════════════════════════════════════════ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+  animation: fadeIn 0.5s ease-out;
+  animation-fill-mode: both;
+}
+
+.kpi-card:nth-child(1) { animation-delay: 0.05s; }
+.kpi-card:nth-child(2) { animation-delay: 0.1s; }
+.kpi-card:nth-child(3) { animation-delay: 0.15s; }
+.kpi-card:nth-child(4) { animation-delay: 0.2s; }
+.kpi-card:nth-child(5) { animation-delay: 0.25s; }
+.kpi-card:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.kpi-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.kpi-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.kpi-card.accent .kpi-value { color: var(--accent); }
+.kpi-card.success .kpi-value { color: var(--success); }
+.kpi-card.warning .kpi-value { color: var(--warning); }
+.kpi-card.danger .kpi-value { color: var(--danger); }
+
+/* ══════════════════════════════════════════════
+   MODULE TABS
+   ══════════════════════════════════════════════ */
+.module-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.module-tab {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.module-tab:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.module-tab.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ══════════════════════════════════════════════
+   MODULE CONTENT
+   ══════════════════════════════════════════════ */
+.module-content {
+  display: none;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.module-content.active {
+  display: block;
+}
+
+/* ══════════════════════════════════════════════
+   CARDS
+   ══════════════════════════════════════════════ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .icon {
+  font-size: 16px;
+}
+
+.card-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.card-badge.success { background: var(--success-bg); color: var(--success); }
+.card-badge.warning { background: var(--warning-bg); color: var(--warning); }
+.card-badge.danger { background: var(--danger-bg); color: var(--danger); }
+.card-badge.info { background: var(--info-bg); color: var(--info); }
+
+/* ══════════════════════════════════════════════
+   TABLES
+   ══════════════════════════════════════════════ */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+tr:hover td {
+  background: var(--accent-bg);
+}
+
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+.amount { font-variant-numeric: tabular-nums; font-weight: 500; }
+.amount.positive { color: var(--success); }
+.amount.negative { color: var(--danger); }
+
+/* ══════════════════════════════════════════════
+   BAR CHART
+   ══════════════════════════════════════════════ */
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-label {
+  width: 120px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  flex: 1;
+  height: 24px;
+  background: var(--border-light);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  min-width: fit-content;
+}
+
+.bar-fill.accent { background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
+.bar-fill.success { background: linear-gradient(90deg, var(--success), #7aba8a); }
+.bar-fill.info { background: linear-gradient(90deg, var(--info), #7a9aba); }
+
+.bar-value {
+  width: 80px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════
+   TWO COLUMN LAYOUT
+   ══════════════════════════════════════════════ */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+/* ══════════════════════════════════════════════
+   ALERT CARDS
+   ══════════════════════════════════════════════ */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  font-size: 13px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.alert.success { background: var(--success-bg); color: var(--success); border-left: 3px solid var(--success); }
+.alert.warning { background: var(--warning-bg); color: var(--warning); border-left: 3px solid var(--warning); }
+.alert.danger { background: var(--danger-bg); color: var(--danger); border-left: 3px solid var(--danger); }
+.alert.info { background: var(--info-bg); color: var(--info); border-left: 3px solid var(--info); }
+
+.alert-icon { font-size: 16px; }
+
+/* ══════════════════════════════════════════════
+   PROFIT METER
+   ══════════════════════════════════════════════ */
+.profit-meter {
+  text-align: center;
+  padding: 24px;
+}
+
+.profit-value {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin: 12px 0;
+}
+
+.profit-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ══════════════════════════════════════════════
+   LOADING STATE
+   ══════════════════════════════════════════════ */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .header { padding: 16px; flex-wrap: wrap; gap: 12px; }
+  .main { padding: 16px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .module-tabs { flex-wrap: nowrap; overflow-x: auto; }
+}
+
+/* ══════════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ══════════════════════════════════════════════
+   FOOTER
+   ══════════════════════════════════════════════ */
+.footer {
+  text-align: center;
+  padding: 32px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">N</div>
+    <div class="header-title">
+      <h1>NabhoBazaar — Audit Dashboard</h1>
+      <p>Cooch Behar · Live Data</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <input type="date" class="date-picker" id="datePicker">
+    <button class="refresh-btn" id="refreshBtn" title="Refresh">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+    </button>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+  <!-- STATUS BANNER -->
+  <div class="status-banner" id="statusBanner">
+    <div class="status-dot clean" id="statusDot"></div>
+    <div class="status-text">
+      <h2 id="statusTitle">Loading...</h2>
+      <p id="statusSub">Fetching data from Google Sheets</p>
+    </div>
+  </div>
+
+  <!-- KPI GRID -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card accent"><div class="kpi-label">Total Sales</div><div class="kpi-value" id="kpiSales">—</div><div class="kpi-sub" id="kpiSalesSub"></div></div>
+    <div class="kpi-card success"><div class="kpi-label">Cash Sales</div><div class="kpi-value" id="kpiCash">—</div><div class="kpi-sub" id="kpiCashSub"></div></div>
+    <div class="kpi-card info"><div class="kpi-label">UPI Sales</div><div class="kpi-value" id="kpiUPI">—</div><div class="kpi-sub" id="kpiUPISub"></div></div>
+    <div class="kpi-card warning"><div class="kpi-label">Vendor Payments</div><div class="kpi-value" id="kpiVendor">—</div><div class="kpi-sub" id="kpiVendorSub"></div></div>
+    <div class="kpi-card"><div class="kpi-label">Net Position</div><div class="kpi-value" id="kpiNet">—</div><div class="kpi-sub" id="kpiNetSub"></div></div>
+    <div class="kpi-card danger"><div class="kpi-label">Dues Outstanding</div><div class="kpi-value" id="kpiDue">—</div><div class="kpi-sub" id="kpiDueSub"></div></div>
+  </div>
+
+  <!-- MODULE TABS -->
+  <div class="module-tabs">
+    <button class="module-tab active" data-module="overview">📊 Overview</button>
+    <button class="module-tab" data-module="sales">🛒 Sales</button>
+    <button class="module-tab" data-module="purchases">📦 Purchases</button>
+    <button class="module-tab" data-module="profit">💰 Profit & Loss</button>
+    <button class="module-tab" data-module="stock">📋 Stock</button>
+    <button class="module-tab" data-module="attendance">👥 Attendance</button>
+    <button class="module-tab" data-module="analytics">🔍 Analytics</button>
+  </div>
+
+  <!-- MODULE: OVERVIEW -->
+  <div class="module-content active" id="mod-overview">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🏦</span> CashBox Reconciliation</div></div>
+        <div class="table-wrap">
+          <table>
+            <tr><td>Opening Cash</td><td class="text-right amount" id="openCash">—</td></tr>
+            <tr><td>+ Cash Sales</td><td class="text-right amount positive" id="addCashSales">—</td></tr>
+            <tr><td>- Vendor Payments</td><td class="text-right amount negative" id="subVendor">—</td></tr>
+            <tr><td>- Expenses</td><td class="text-right amount negative" id="subExpense">—</td></tr>
+            <tr style="font-weight:600"><td>Expected Closing</td><td class="text-right amount" id="expectedClose">—</td></tr>
+            <tr style="font-weight:600"><td>Actual Closing</td><td class="text-right amount" id="actualClose">—</td></tr>
+            <tr><td colspan="2"><div class="alert success" id="reconAlert" style="margin:0"><span class="alert-icon">✅</span> <span id="reconText">Calculating...</span></div></td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🧾</span> Vendor Invoices</div><div class="card-badge info" id="invCount">— invoices</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Vendor</th><th>Invoice#</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody id="vendorTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: SALES -->
+  <div class="module-content" id="mod-sales">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">👥</span> Top Customers</div></div>
+        <div class="bar-chart" id="customerChart"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🏆</span> Top Items by Revenue</div></div>
+        <div class="bar-chart" id="itemChart"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">📝</span> All Sales</div><div class="card-badge info" id="salesCount">—</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Payment</th></tr></thead>
+          <tbody id="salesTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: PURCHASES -->
+  <div class="module-content" id="mod-purchases">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">📊</span> Purchase Breakdown</div></div>
+        <div class="table-wrap">
+          <table>
+            <tr><td>Total Purchases</td><td class="text-right amount" id="totalPurchases">—</td></tr>
+            <tr><td>Cash Paid</td><td class="text-right amount" id="purchCash">—</td></tr>
+            <tr><td>Owner Paid (Axis)</td><td class="text-right amount" id="purchOwner">—</td></tr>
+            <tr><td>Due (Unpaid)</td><td class="text-right amount negative" id="purchDue">—</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🏪</span> Vendor-wise Purchases</div></div>
+        <div class="bar-chart" id="vendorChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: PROFIT & LOSS -->
+  <div class="module-content" id="mod-profit">
+    <div class="grid-2">
+      <div class="card">
+        <div class="profit-meter">
+          <div class="profit-label">Today's Profit</div>
+          <div class="profit-value" id="profitValue" style="color:var(--success)">—</div>
+          <div class="profit-label">Based on pricing engine</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🏆</span> Most Profitable Items</div></div>
+        <div class="bar-chart" id="profitChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: STOCK -->
+  <div class="module-content" id="mod-stock">
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">📦</span> Stock Summary</div></div>
+        <table>
+          <tr><td>Total Items</td><td class="text-right amount" id="stockTotal">—</td></tr>
+          <tr><td>Stock Value</td><td class="text-right amount" id="stockValue">—</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">⚠️</span> Low Stock</div><div class="card-badge warning" id="lowStockCount">—</div></div>
+        <div id="lowStockList" style="max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="icon">🔴</span> Negative Stock</div><div class="card-badge danger" id="negStockCount">—</div></div>
+        <div id="negStockList" style="max-height:200px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: ATTENDANCE -->
+  <div class="module-content" id="mod-attendance">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">👥</span> Today's Attendance</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Type</th><th>Check In</th><th>Check Out</th><th>Work Hours</th><th>Break</th></tr></thead>
+          <tbody id="attendanceTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: ANALYTICS -->
+  <div class="module-content" id="mod-analytics">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">📝</span> All Transactions</div><div class="card-badge info" id="txnCount">—</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ref</th><th>Party</th><th>Type</th><th>Total</th><th>Payment</th><th>Paid</th><th>Received</th><th>Balance</th></tr></thead>
+          <tbody id="txnTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="icon">📦</span> All Items Sold</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Invoice</th><th>Qty</th><th>Unit Price</th><th>Tax</th><th>Amount</th></tr></thead>
+          <tbody id="itemsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    NabhoBazaar Audit System · Built by Sage 🫶 · Data refreshes every 15 minutes
+  </div>
+</main>
+
+<script>
+/* ══════════════════════════════════════════════
+   THEME TOGGLE
+   ══════════════════════════════════════════════ */
+const themeToggle = document.getElementById('themeToggle');
+const html = document.documentElement;
+
+function setTheme(theme) {
+  html.setAttribute('data-theme', theme);
+  themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('nabho-theme', theme);
+}
+
+themeToggle.addEventListener('click', () => {
+  setTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+setTheme(localStorage.getItem('nabho-theme') || 'light');
+
+/* ══════════════════════════════════════════════
+   MODULE TABS
+   ══════════════════════════════════════════════ */
+document.querySelectorAll('.module-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.module-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.module-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('mod-' + tab.dataset.module).classList.add('active');
+  });
+});
+
+/* ══════════════════════════════════════════════
+   FORMAT HELPERS
+   ══════════════════════════════════════════════ */
+function fmt(n) {
+  if (n == null || isNaN(n)) return '—';
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtDec(n) {
+  if (n == null || isNaN(n)) return '—';
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* ══════════════════════════════════════════════
+   DATA LOADING
+   ══════════════════════════════════════════════ */
+async function loadData(date) {
+  const refreshBtn = document.getElementById('refreshBtn');
+  refreshBtn.classList.add('spinning');
+
+  try {
+    const resp = await fetch('data.json?' + Date.now());
+    const data = await resp.json();
+    renderDashboard(data);
+  } catch (e) {
+    console.error('Failed to load data:', e);
+    document.getElementById('statusTitle').textContent = 'Failed to load data';
+    document.getElementById('statusSub').textContent = e.message;
+  } finally {
+    refreshBtn.classList.remove('spinning');
+  }
+}
+
+/* ══════════════════════════════════════════════
+   RENDER DASHBOARD
+   ══════════════════════════════════════════════ */
+function renderDashboard(data) {
+  const store = data.stores?.NabhoBazaarCoochBehar?.data;
+  if (!store) {
+    document.getElementById('statusTitle').textContent = 'No data available';
+    return;
+  }
+
+  const s = store.summary;
+  const hasData = s.total_sales > 0 || s.closing_cash > 0;
+
+  // Status banner
+  document.getElementById('statusDot').className = 'status-dot ' + (hasData ? 'clean' : 'warning');
+  document.getElementById('statusTitle').textContent = hasData
+    ? 'System Clean — All Reconciled ✅'
+    : 'No transactions for this date';
+  document.getElementById('statusSub').textContent = `Generated ${new Date(data.generated_at).toLocaleString()} · ${data.date}`;
+
+  // KPIs
+  document.getElementById('kpiSales').textContent = fmt(s.total_sales);
+  document.getElementById('kpiSalesSub').textContent = `${s.txn_count} transactions`;
+  document.getElementById('kpiCash').textContent = fmt(s.cash_sales);
+  document.getElementById('kpiCashSub').textContent = `${((s.cash_sales/s.total_sales)*100).toFixed(0)}% of sales`;
+  document.getElementById('kpiUPI').textContent = fmt(s.upi_sales);
+  document.getElementById('kpiUPISub').textContent = `${((s.upi_sales/s.total_sales)*100).toFixed(0)}% of sales`;
+  document.getElementById('kpiVendor').textContent = fmt(s.total_vendor_inv);
+  document.getElementById('kpiVendorSub').textContent = `Cash: ${fmt(s.total_cash_paid)}`;
+  document.getElementById('kpiNet').textContent = fmt(s.closing_total);
+  document.getElementById('kpiNetSub').textContent = `Cash: ${fmt(s.closing_cash)} · UPI: ${fmt(s.closing_upi)}`;
+  document.getElementById('kpiDue').textContent = fmt(s.total_due);
+  document.getElementById('kpiDueSub').textContent = s.total_due > 0 ? 'Outstanding' : 'All clear';
+
+  // Overview — CashBox Reconciliation
+  document.getElementById('openCash').textContent = fmt(s.opening_cash);
+  document.getElementById('addCashSales').textContent = '+' + fmt(s.cash_sales);
+  document.getElementById('subVendor').textContent = '-' + fmt(s.total_vendor_cash);
+  document.getElementById('subExpense').textContent = '-' + fmt(s.total_expenses);
+  const expected = s.opening_cash + s.cash_sales - s.total_vendor_cash - s.total_expenses;
+  document.getElementById('expectedClose').textContent = fmt(expected);
+  document.getElementById('actualClose').textContent = fmt(s.closing_cash);
+  const diff = s.closing_cash - expected;
+  document.getElementById('reconText').textContent = diff === 0
+    ? 'Perfect reconciliation — ₹0 discrepancy'
+    : `Discrepancy: ${fmt(Math.abs(diff))}`;
+
+  // Vendor Invoices
+  document.getElementById('invCount').textContent = `${store.vendor_invoices.length} invoices`;
+  const vendorTBody = document.getElementById('vendorTable');
+  vendorTBody.innerHTML = '';
+  store.vendor_invoices.forEach(v => {
+    const status = v.due > 0 ? '⚠️ Due' : (v.owner_paid > 0 ? '🏦 Owner' : '✅ Paid');
+    const badge = v.due > 0 ? 'warning' : 'success';
+    vendorTBody.innerHTML += `<tr><td>${v.vendor}</td><td>${v.invoice_no}</td><td class="text-right amount">${fmt(v.amount)}</td><td><span class="card-badge ${badge}">${status}</span></td></tr>`;
+  });
+
+  // Sales — Top Customers
+  const customerChart = document.getElementById('customerChart');
+  customerChart.innerHTML = '';
+  const maxCust = store.top_customers[0]?.total || 1;
+  store.top_customers.forEach((c, i) => {
+    const pct = (c.total / maxCust * 100).toFixed(0);
+    customerChart.innerHTML += `<div class="bar-item"><div class="bar-label">${c.name}</div><div class="bar-track"><div class="bar-fill accent" style="width:${pct}%">${c.count}x</div></div><div class="bar-value">${fmt(c.total)}</div></div>`;
+  });
+
+  // Sales — Top Items
+  const itemChart = document.getElementById('itemChart');
+  itemChart.innerHTML = '';
+  const maxItem = store.top_items[0]?.revenue || 1;
+  store.top_items.slice(0, 10).forEach(item => {
+    const pct = (item.revenue / maxItem * 100).toFixed(0);
+    itemChart.innerHTML += `<div class="bar-item"><div class="bar-label">${item.name.substring(0, 20)}</div><div class="bar-track"><div class="bar-fill info" style="width:${pct}%">${item.qty}x</div></div><div class="bar-value">${fmt(item.revenue)}</div></div>`;
+  });
+
+  // Sales Table
+  document.getElementById('salesCount').textContent = `${store.sales.length} sales`;
+  const salesTBody = document.getElementById('salesTable');
+  salesTBody.innerHTML = '';
+  store.sales.forEach(s => {
+    salesTBody.innerHTML += `<tr><td>${s.ref}</td><td>${s.party}</td><td class="text-right amount">${fmt(s.total)}</td><td>${s.payment}</td></tr>`;
+  });
+
+  // Purchases
+  document.getElementById('totalPurchases').textContent = fmt(s.total_vendor_inv);
+  document.getElementById('purchCash').textContent = fmt(s.total_cash_paid);
+  document.getElementById('purchOwner').textContent = fmt(s.total_owner_paid);
+  document.getElementById('purchDue').textContent = fmt(s.total_due);
+
+  // Vendor Chart
+  const vendorChart = document.getElementById('vendorChart');
+  vendorChart.innerHTML = '';
+  const vendorGroups = {};
+  store.vendor_invoices.forEach(v => {
+    vendorGroups[v.vendor] = (vendorGroups[v.vendor] || 0) + v.amount;
+  });
+  const sortedVendors = Object.entries(vendorGroups).sort((a, b) => b[1] - a[1]);
+  const maxVendor = sortedVendors[0]?.[1] || 1;
+  sortedVendors.forEach(([name, amt]) => {
+    const pct = (amt / maxVendor * 100).toFixed(0);
+    vendorChart.innerHTML += `<div class="bar-item"><div class="bar-label">${name.substring(0, 20)}</div><div class="bar-track"><div class="bar-fill accent" style="width:${pct}%"></div></div><div class="bar-value">${fmt(amt)}</div></div>`;
+  });
+
+  // Profit
+  document.getElementById('profitValue').textContent = fmt(s.total_profit);
+  document.getElementById('profitValue').style.color = s.total_profit >= 0 ? 'var(--success)' : 'var(--danger)';
+  const profitChart = document.getElementById('profitChart');
+  profitChart.innerHTML = '';
+  const maxProfit = store.item_profits[0]?.profit || 1;
+  store.item_profits.forEach(p => {
+    const pct = (p.profit / maxProfit * 100).toFixed(0);
+    profitChart.innerHTML += `<div class="bar-item"><div class="bar-label">${p.item.substring(0, 20)}</div><div class="bar-track"><div class="bar-fill success" style="width:${pct}%">${p.qty}x</div></div><div class="bar-value">${fmt(p.profit)}</div></div>`;
+  });
+
+  // Stock
+  document.getElementById('stockTotal').textContent = `${store.stock_count} items`;
+  document.getElementById('stockValue').textContent = fmt(s.total_stock_value);
+  document.getElementById('lowStockCount').textContent = `${store.low_stock.length} items`;
+  document.getElementById('negStockCount').textContent = `${store.negative_stock.length} items`;
+
+  const lowStockList = document.getElementById('lowStockList');
+  lowStockList.innerHTML = '';
+  store.low_stock.forEach(item => {
+    lowStockList.innerHTML += `<div class="alert warning"><span class="alert-icon">⚠️</span> ${item.item} — ${item.stock_qty} left</div>`;
+  });
+
+  const negStockList = document.getElementById('negStockList');
+  negStockList.innerHTML = '';
+  store.negative_stock.forEach(item => {
+    negStockList.innerHTML += `<div class="alert danger"><span class="alert-icon">🔴</span> ${item.item} — ${item.stock_qty}</div>`;
+  });
+
+  // Attendance
+  const attTBody = document.getElementById('attendanceTable');
+  attTBody.innerHTML = '';
+  store.attendance.forEach(a => {
+    attTBody.innerHTML += `<tr><td>${a.employee}</td><td>${a.type}</td><td>${a.checkin}</td><td>${a.checkout}</td><td>${a.work_hours}</td><td>${a.break_hours}</td></tr>`;
+  });
+  if (store.attendance.length === 0) {
+    attTBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No attendance records for this date</td></tr>';
+  }
+
+  // Analytics — All Transactions
+  document.getElementById('txnCount').textContent = `${store.all_transactions.length} transactions`;
+  const txnTBody = document.getElementById('txnTable');
+  txnTBody.innerHTML = '';
+  store.all_transactions.forEach(t => {
+    const typeClass = 'Sale' in t.type ? 'positive' : 'negative';
+    txnTBody.innerHTML += `<tr><td>${t.ref}</td><td>${t.party}</td><td>${t.type}</td><td class="text-right amount ${typeClass}">${fmt(t.total)}</td><td>${t.payment}</td><td class="text-right amount">${fmt(t.paid)}</td><td class="text-right amount">${fmt(t.received)}</td><td class="text-right amount">${t.balance > 0 ? fmt(t.balance) : '—'}</td></tr>`;
+  });
+
+  // Analytics — All Items
+  const itemsTBody = document.getElementById('itemsTable');
+  itemsTBody.innerHTML = '';
+  store.all_items.filter(i => 'Sale' in i.txn_type).forEach(item => {
+    itemsTBody.innerHTML += `<tr><td>${item.item}</td><td>${item.inv_no}</td><td class="text-right">${item.qty}</td><td class="text-right amount">${fmtDec(item.unit_price)}</td><td class="text-right amount">${fmtDec(item.tax)}</td><td class="text-right amount">${fmt(item.amount)}</td></tr>`;
+  });
+}
+
+/* ══════════════════════════════════════════════
+   DATE PICKER
+   ══════════════════════════════════════════════ */
+const datePicker = document.getElementById('datePicker');
+datePicker.valueAsDate = new Date();
+datePicker.addEventListener('change', () => loadData());
+
+/* ══════════════════════════════════════════════
+   REFRESH BUTTON
+   ══════════════════════════════════════════════ */
+document.getElementById('refreshBtn').addEventListener('click', () => loadData());
+
+/* ══════════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════════ */
+loadData();
+
+// Auto-refresh every 5 minutes
+setInterval(() => loadData(), 300000);
+</script>
+
+</body>
+</html>
