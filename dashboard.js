@@ -1,665 +1,269 @@
 /* ═══════════════════════════════════════════
-   NabhoDashboard — Supabase-Powered App
+   NabhoDashboard — Supabase-Powered App v2
    ═══════════════════════════════════════════ */
 
-// ─── Supabase Config ───
-const SUPABASE_URL = 'https://hrbutgotfglunmoxjlyb.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyYnV0Z290ZmdsdW5tb3hqbHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjA4NzIsImV4cCI6MjA5NDM5Njg3Mn0.Fp8Fwa1NLyFssN4HcK4m9puUG1-FMchqaQMd7U7zuvs';
+const SB_URL = 'https://hrbutgotfglunmoxjlyb.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyYnV0Z290ZmdsdW5tb3hqbHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjA4NzIsImV4cCI6MjA5NDM5Njg3Mn0.Fp8Fwa1NLyFssN4HcK4m9puUG1-FMchqaQMd7U7zuvs';
+let sb;
+try { sb = window.supabase.createClient(SB_URL, SB_KEY); } catch(e) { console.error('Supabase init failed:', e); }
 
-let supabase;
-try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-} catch (e) {
-    console.error('Supabase init failed:', e);
-}
+let curDate = '2026-06-02';
+let curStore = 'NabhoBazaarCoochBehar';
+let loading = false;
 
-// ─── State ───
-let currentDate = new Date().toISOString().split('T')[0];
-let currentStore = 'NabhoBazaarCoochBehar';
-let currentSection = 'overview';
-let sortState = {};
-let allDates = [];
-let salesTrendChart = null;
-let paymentMixChart = null;
-let isLoading = false;
+const fmt = v => { const n = parseFloat(v)||0; return n===0?'₹0':'₹'+n.toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2}); };
 
 // ─── Init ───
 document.addEventListener('DOMContentLoaded', async () => {
-    setupEventListeners();
-
-    // Safety: force-hide loading after 15s no matter what
-    setTimeout(() => hideLoading(true), 15000);
-
-    if (!supabase) {
-        document.getElementById('connectionStatus').textContent = 'Supabase init failed';
-        document.querySelector('.status-dot').classList.add('error');
-        hideLoading();
-        return;
-    }
-
-    await loadDates();
+    setupNav();
+    if (!sb) { setStatus('Supabase init failed', true); hideLoad(); return; }
+    
+    // Find the latest date with data
+    try {
+        const {data} = await sb.from('v_dates_with_data').select('date').order('date',{ascending:false}).limit(1);
+        if (data && data.length) curDate = data[0].date;
+    } catch(e) {}
+    
+    document.getElementById('datePicker').value = curDate;
     await loadAll();
+    setTimeout(() => hideLoad(), 10000); // safety
 });
 
-// ─── Event Listeners ───
-function setupEventListeners() {
-    // Navigation
+function setupNav() {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', e => {
             e.preventDefault();
-            const section = link.dataset.section;
-            switchSection(section);
+            const s = link.dataset.section;
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById('section-'+s).classList.add('active');
+            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'Sales',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation'};
+            document.getElementById('pageTitle').textContent = t[s]||s;
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('hamburger').classList.remove('active');
         });
     });
-
-    // Date picker
-    const datePicker = document.getElementById('datePicker');
-    datePicker.value = currentDate;
-    datePicker.addEventListener('change', () => {
-        currentDate = datePicker.value;
-        loadAll();
-    });
-
-    // Date nav
-    document.getElementById('datePrev').addEventListener('click', () => navigateDate(-1));
-    document.getElementById('dateNext').addEventListener('click', () => navigateDate(1));
-    document.getElementById('dateToday').addEventListener('click', () => {
-        currentDate = new Date().toISOString().split('T')[0];
-        datePicker.value = currentDate;
-        loadAll();
-    });
-
-    // Store selector
-    document.getElementById('storeSelect').addEventListener('change', e => {
-        currentStore = e.target.value;
-        loadAll();
-    });
-
-    // Hamburger
-    document.getElementById('hamburger').addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('open');
-        document.getElementById('hamburger').classList.toggle('active');
-    });
-
-    // Search inputs
-    document.querySelectorAll('.search-input').forEach(input => {
-        input.addEventListener('input', e => {
-            const table = input.dataset.table;
-            filterTable(table, e.target.value);
+    
+    const dp = document.getElementById('datePicker');
+    dp.addEventListener('change', () => { curDate = dp.value; loadAll(); });
+    document.getElementById('datePrev').addEventListener('click', () => { const d=new Date(curDate); d.setDate(d.getDate()-1); curDate=d.toISOString().split('T')[0]; dp.value=curDate; loadAll(); });
+    document.getElementById('dateNext').addEventListener('click', () => { const d=new Date(curDate); d.setDate(d.getDate()+1); curDate=d.toISOString().split('T')[0]; dp.value=curDate; loadAll(); });
+    document.getElementById('dateToday').addEventListener('click', () => { curDate=new Date().toISOString().split('T')[0]; dp.value=curDate; loadAll(); });
+    document.getElementById('storeSelect').addEventListener('change', e => { curStore=e.target.value; loadAll(); });
+    document.getElementById('hamburger').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('hamburger').classList.toggle('active'); });
+    
+    // Search
+    document.querySelectorAll('.search-input').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const tb = document.querySelector('#table-'+inp.dataset.table+' tbody');
+            if (!tb) return;
+            const q = e.target.value.toLowerCase();
+            tb.querySelectorAll('tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none'; });
         });
     });
-
+    
     // Stock filters
     document.querySelectorAll('.btn-filter[data-filter]').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.btn-filter[data-filter]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            filterStock(btn.dataset.filter);
+            const f = btn.dataset.filter;
+            document.querySelectorAll('#table-stock tbody tr').forEach(r => {
+                const q = parseFloat(r.cells[6]?.textContent.replace(/[₹,]/g,''))||0;
+                r.style.display = f==='all'?'':f==='low'?(q>=0&&q<5?'':'none'):q<0?'':'none';
+            });
         });
     });
-
-    // Table sorting
+    
+    // Sort
     document.querySelectorAll('.data-table th[data-sort]').forEach(th => {
         th.addEventListener('click', () => {
-            const table = th.closest('.data-table').id.replace('table-', '');
-            const field = th.dataset.sort;
-            sortTable(table, field, th);
+            const table = th.closest('.data-table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const idx = Array.from(table.querySelectorAll('th')).indexOf(th);
+            const asc = !th.classList.contains('sorted-asc');
+            table.querySelectorAll('th').forEach(t => t.classList.remove('sorted-asc','sorted-desc'));
+            th.classList.add(asc?'sorted-asc':'sorted-desc');
+            rows.sort((a,b) => {
+                let av = a.cells[idx]?.textContent.trim()||'';
+                let bv = b.cells[idx]?.textContent.trim()||'';
+                const an = parseFloat(av.replace(/[₹,]/g,''));
+                const bn = parseFloat(bv.replace(/[₹,]/g,''));
+                if (!isNaN(an)&&!isNaN(bn)) return asc?an-bn:bn-an;
+                return asc?av.localeCompare(bv):bv.localeCompare(av);
+            });
+            rows.forEach(r => tbody.appendChild(r));
         });
     });
-}
-
-// ─── Navigation ───
-function switchSection(section) {
-    currentSection = section;
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    document.querySelector(`.nav-link[data-section="${section}"]`).classList.add('active');
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.getElementById(`section-${section}`).classList.add('active');
-
-    const titles = {
-        overview: 'Overview', cashbox: 'CashBox', vendor_invoices: 'Vendor Invoices',
-        sales: 'Sales', stock: 'Stock / Inventory', attendance: 'Attendance',
-        telegram_invoices: 'Telegram Invoices', reconciliation: 'Reconciliation'
-    };
-    document.getElementById('pageTitle').textContent = titles[section] || section;
-    document.getElementById('pageSubtitle').textContent = formatDateDisplay(currentDate);
-
-    // Close mobile sidebar
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('hamburger').classList.remove('active');
-}
-
-function navigateDate(offset) {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() + offset);
-    currentDate = d.toISOString().split('T')[0];
-    document.getElementById('datePicker').value = currentDate;
-    loadAll();
-}
-
-function formatDateDisplay(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-// ─── Data Loading ───
-async function loadDates() {
-    try {
-        const { data, error } = await supabase.from('v_dates_with_data').select('date');
-        if (data) allDates = data.map(r => r.date);
-    } catch (e) {
-        console.warn('Could not load dates:', e);
-    }
 }
 
 async function loadAll() {
-    if (isLoading) return; // Prevent double-loading
-    isLoading = true;
-    showLoading();
-
+    if (loading) return;
+    loading = true;
+    showLoad();
+    
     try {
-        // Load all data in parallel — each has its own error handling
-        const results = await Promise.allSettled([
-            loadTable('cashbox'),
-            loadTable('vendor_invoices'),
-            loadTable('sales'),
-            loadTable('stock'),
-            loadTable('attendance'),
-            loadTable('telegram_invoices'),
-            loadTable('reconciliation'),
-            loadDailySummary()
+        const sf = curStore === 'all' ? undefined : curStore;
+        const q = table => {
+            let query = sb.from(table).select('*').eq('date', curDate);
+            if (sf) query = query.eq('store', sf);
+            return query.then(({data,error}) => { if(error) console.warn(table,error); return data||[]; });
+        };
+        
+        const [cb, vi, sl, st, att, tg, rc, sm] = await Promise.allSettled([
+            q('cashbox'), q('vendor_invoices'), q('sales'), q('stock'),
+            q('attendance'), q('telegram_invoices'), q('reconciliation'),
+            sb.from('daily_summaries').select('*').eq('date', curDate).limit(1).then(r => r.data?.[0]||null)
         ]);
-
-        const cashbox = results[0].status === 'fulfilled' ? results[0].value : [];
-        const vendorInvoices = results[1].status === 'fulfilled' ? results[1].value : [];
-        const sales = results[2].status === 'fulfilled' ? results[2].value : [];
-        const stock = results[3].status === 'fulfilled' ? results[3].value : [];
-        const attendance = results[4].status === 'fulfilled' ? results[4].value : [];
-        const telegramInvoices = results[5].status === 'fulfilled' ? results[5].value : [];
-        const reconciliation = results[6].status === 'fulfilled' ? results[6].value : [];
-        const summary = results[7].status === 'fulfilled' ? results[7].value : null;
-
-        // Log any failures
-        results.forEach((r, i) => {
-            if (r.status === 'rejected') console.warn(`Query ${i} failed:`, r.reason);
-        });
-
-        // Update sections
+        
+        const cashbox = cb.status==='fulfilled'?cb.value:[];
+        const vendorInvoices = vi.status==='fulfilled'?vi.value:[];
+        const sales = sl.status==='fulfilled'?sl.value:[];
+        const stock = st.status==='fulfilled'?st.value:[];
+        const attendance = att.status==='fulfilled'?att.value:[];
+        const telegramInvoices = tg.status==='fulfilled'?tg.value:[];
+        const reconciliation = rc.status==='fulfilled'?rc.value:[];
+        const summary = sm.status==='fulfilled'?sm.value:null;
+        
+        renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summary);
         renderCashbox(cashbox);
-        renderVendorInvoices(vendorInvoices);
+        renderVI(vendorInvoices);
         renderSales(sales);
         renderStock(stock);
-        renderAttendance(attendance);
-        renderTelegramInvoices(telegramInvoices);
-        renderReconciliation(reconciliation);
-        renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summary);
-
-        // Update connection status
-        document.getElementById('connectionStatus').textContent = 'Connected to Supabase';
-        document.querySelector('.status-dot').classList.add('online');
-        document.querySelector('.status-dot').classList.remove('error');
-    } catch (e) {
+        renderAtt(attendance);
+        renderTG(telegramInvoices);
+        renderRecon(reconciliation);
+        
+        setStatus('Connected to Supabase', false);
+    } catch(e) {
         console.error('Load error:', e);
-        document.getElementById('connectionStatus').textContent = 'Connection error';
-        document.querySelector('.status-dot').classList.add('error');
-        document.querySelector('.status-dot').classList.remove('online');
-    } finally {
-        isLoading = false;
-        hideLoading();
+        setStatus('Error loading data', true);
     }
+    loading = false;
+    hideLoad();
 }
 
-async function loadTable(table) {
-    try {
-        let query = supabase.from(table).select('*').eq('date', currentDate);
-        if (currentStore !== 'all') query = query.eq('store', currentStore);
-        const { data, error } = await query;
-        if (error) {
-            console.warn(`Error loading ${table}:`, error);
-            return [];
-        }
-        return data || [];
-    } catch (e) {
-        console.warn(`Exception loading ${table}:`, e);
-        return [];
-    }
+// ─── Renderers ───
+function renderOverview(cb, vi, sl, st, rc, sm) {
+    const ts = sl.reduce((s,r) => s+(parseFloat(r.total)||0), 0);
+    const p = sm?.total_profit||0;
+    document.getElementById('kpi-sales').textContent = fmt(ts);
+    document.getElementById('kpi-sales-txn').textContent = sl.length+' transactions';
+    document.getElementById('kpi-profit').textContent = fmt(p);
+    document.getElementById('kpi-profit-margin').textContent = ts>0?((p/ts*100).toFixed(1)+'% margin'):'0%';
+    document.getElementById('kpi-stock').textContent = fmt(sm?.total_stock_value);
+    document.getElementById('kpi-stock-items').textContent = st.length+' items';
+    document.getElementById('kpi-vendor').textContent = fmt(vi.reduce((s,r) => s+(parseFloat(r.amount)||0), 0));
+    document.getElementById('kpi-vendor-count').textContent = vi.length+' invoices';
+    document.getElementById('kpi-discrepancies').textContent = rc.filter(r=>r.status!=='PASS').length;
+    document.getElementById('kpi-discrepancies-detail').textContent = rc.filter(r=>r.status!=='PASS').length===0?'All checks passed':rc.filter(r=>r.status!=='PASS').length+' issues';
+    document.getElementById('kpi-closing').textContent = fmt((sm?.closing_cash||0)+(sm?.closing_upi||0));
+    document.getElementById('kpi-closing-detail').textContent = 'Cash: '+fmt(sm?.closing_cash)+' + UPI: '+fmt(sm?.closing_upi);
+    
+    // Overview cashbox
+    const ovCb = document.getElementById('overviewCashbox');
+    if (cb.length) {
+        ovCb.innerHTML = '<table class="data-table"><thead><tr><th>Time</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead><tbody>'+cb.slice(-5).map(r => {
+            const a = (parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0)-(parseFloat(r.cash_out)||0)-(parseFloat(r.upi_out)||0);
+            return '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.description||'')+'</td><td class="num '+(a>=0?'positive':'negative')+'">'+fmt(a)+'</td></tr>';
+        }).join('')+'</tbody></table>';
+    } else { ovCb.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No cashbox data</p></div>'; }
+    
+    // Overview recon
+    const ovRc = document.getElementById('overviewRecon');
+    if (rc.length) {
+        ovRc.innerHTML = rc.map(r => '<div class="recon-card '+(r.status==='PASS'?'pass':'fail')+'" style="margin-bottom:8px;padding:12px;"><span class="recon-title">'+(r.status==='PASS'?'✅':'❌')+' '+r.check_type+'</span><span class="recon-status" style="float:right;color:'+(r.status==='PASS'?'var(--green)':'var(--red)')+'">'+r.status+'</span>'+(r.details?'<div class="recon-detail">'+r.details+'</div>':'')+'</div>').join('');
+    } else { ovRc.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No reconciliation data</p></div>'; }
+    
+    // Charts
+    renderCharts(sl);
 }
 
-async function loadDailySummary() {
-    try {
-        let query = supabase.from('daily_summaries').select('*').eq('date', currentDate);
-        if (currentStore !== 'all') query = query.eq('store', currentStore);
-        const { data, error } = await query;
-        if (error || !data || data.length === 0) return null;
-        return data[0];
-    } catch (e) {
-        console.warn('Error loading summary:', e);
-        return null;
-    }
-}
-
-// ─── Render: Overview ───
-function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summary) {
-    const totalSales = sales.reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
-    const txnCount = sales.length;
-    const totalVendor = vendorInvoices.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-    const totalStockValue = stock.reduce((s, r) => s + (parseFloat(r.stock_value) || 0), 0);
-    const discrepancies = reconciliation.filter(r => r.status !== 'PASS').length;
-
-    const profit = summary ? summary.total_profit : 0;
-    const closingCash = summary ? summary.closing_cash : 0;
-    const closingUpi = summary ? summary.closing_upi : 0;
-
-    document.getElementById('kpi-sales').textContent = formatCurrency(totalSales);
-    document.getElementById('kpi-sales-txn').textContent = `${txnCount} transactions`;
-    document.getElementById('kpi-profit').textContent = formatCurrency(profit);
-    document.getElementById('kpi-profit-margin').textContent = totalSales > 0 ? `${((profit/totalSales)*100).toFixed(1)}% margin` : '0% margin';
-    document.getElementById('kpi-stock').textContent = formatCurrency(totalStockValue);
-    document.getElementById('kpi-stock-items').textContent = `${stock.length} items`;
-    document.getElementById('kpi-vendor').textContent = formatCurrency(totalVendor);
-    document.getElementById('kpi-vendor-count').textContent = `${vendorInvoices.length} invoices`;
-    document.getElementById('kpi-discrepancies').textContent = discrepancies;
-    document.getElementById('kpi-discrepancies-detail').textContent = discrepancies === 0 ? 'All checks passed' : `${discrepancies} issues found`;
-    document.getElementById('kpi-closing').textContent = formatCurrency(closingCash + closingUpi);
-    document.getElementById('kpi-closing-detail').textContent = `Cash: ${formatCurrency(closingCash)} + UPI: ${formatCurrency(closingUpi)}`;
-
-    renderOverviewCashbox(cashbox.slice(-5));
-    renderOverviewRecon(reconciliation);
-
-    // Charts — fire and forget, don't block UI
-    renderSalesTrendChart().catch(e => console.warn('Sales chart error:', e));
-    renderPaymentMixChart(sales);
-}
-
-function renderOverviewCashbox(rows) {
-    const el = document.getElementById('overviewCashbox');
-    if (!rows.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No cashbox activity today</p></div>'; return; }
-    let html = '<table class="data-table"><thead><tr><th>Time</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead><tbody>';
-    rows.forEach(r => {
-        const amount = (parseFloat(r.cash_in)||0) + (parseFloat(r.upi_in)||0) - (parseFloat(r.cash_out)||0) - (parseFloat(r.upi_out)||0);
-        html += `<tr><td>${r.time||''}</td><td>${r.transaction_type||''}</td><td>${r.description||''}</td><td class="num ${amount>=0?'positive':'negative'}">${formatCurrency(amount)}</td></tr>`;
-    });
-    html += '</tbody></table>';
-    el.innerHTML = html;
-}
-
-function renderOverviewRecon(rows) {
-    const el = document.getElementById('overviewRecon');
-    if (!rows.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No reconciliation data for today</p></div>'; return; }
-    let html = '';
-    rows.forEach(r => {
-        const cls = r.status === 'PASS' ? 'pass' : 'fail';
-        const icon = r.status === 'PASS' ? '✅' : '❌';
-        html += `<div class="recon-card ${cls}" style="margin-bottom:8px;padding:12px;">
-            <span class="recon-title">${icon} ${r.check_type}</span>
-            <span class="recon-status" style="float:right;color:${cls==='pass'?'var(--green)':'var(--red)'}">${r.status}</span>
-            ${r.details ? `<div class="recon-detail">${r.details}</div>` : ''}
-        </div>`;
-    });
-    el.innerHTML = html;
-}
-
-// ─── Render: CashBox ───
 function renderCashbox(rows) {
-    renderTable('cashbox', rows, r => ({
-        time: r.time || '',
-        transaction_type: r.transaction_type || '',
-        ref: r.ref || '',
-        description: r.description || '',
-        cash_in: formatCurrency(r.cash_in),
-        cash_out: formatCurrency(r.cash_out),
-        upi_in: formatCurrency(r.upi_in),
-        upi_out: formatCurrency(r.upi_out),
-        owner_paid: formatCurrency(r.owner_paid),
-        running_cash: formatCurrency(r.running_cash),
-        running_upi: formatCurrency(r.running_upi),
-        total: formatCurrency(r.total)
-    }));
-
-    const totalCashIn = rows.reduce((s,r) => s + (parseFloat(r.cash_in)||0), 0);
-    const totalCashOut = rows.reduce((s,r) => s + (parseFloat(r.cash_out)||0), 0);
-    const totalUpiIn = rows.reduce((s,r) => s + (parseFloat(r.upi_in)||0), 0);
-    const totalUpiOut = rows.reduce((s,r) => s + (parseFloat(r.upi_out)||0), 0);
-    renderSummaryChips('cashboxSummary', [
-        { label: 'Cash In', value: formatCurrency(totalCashIn) },
-        { label: 'Cash Out', value: formatCurrency(totalCashOut) },
-        { label: 'UPI In', value: formatCurrency(totalUpiIn) },
-        { label: 'UPI Out', value: formatCurrency(totalUpiOut) },
-        { label: 'Transactions', value: rows.length }
-    ]);
+    const tb = document.querySelector('#table-cashbox tbody');
+    if (!rows.length) { tb.innerHTML = emptyRow('cashbox'); return; }
+    tb.innerHTML = rows.map(r => '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.ref||'')+'</td><td>'+(r.description||'')+'</td><td class="num">'+fmt(r.cash_in)+'</td><td class="num">'+fmt(r.cash_out)+'</td><td class="num">'+fmt(r.upi_in)+'</td><td class="num">'+fmt(r.upi_out)+'</td><td class="num">'+fmt(r.owner_paid)+'</td><td class="num">'+fmt(r.running_cash)+'</td><td class="num">'+fmt(r.running_upi)+'</td><td class="num">'+fmt(r.total)+'</td></tr>').join('');
+    summaryChips('cashboxSummary', [{l:'Cash In',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0))},{l:'Cash Out',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.cash_out)||0),0))},{l:'UPI In',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0))},{l:'UPI Out',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.upi_out)||0),0))},{l:'Rows',v:rows.length}]);
 }
 
-// ─── Render: Vendor Invoices ───
-function renderVendorInvoices(rows) {
-    renderTable('vendor_invoices', rows, r => ({
-        vendor: r.vendor || '',
-        invoice_no: r.invoice_no || '',
-        bill_date: r.bill_date || '',
-        purchase_date: r.purchase_date || '',
-        clear_date: r.clear_date || '',
-        amount: formatCurrency(r.amount),
-        cash_paid: formatCurrency(r.cash_paid),
-        owner_paid: formatCurrency(r.owner_paid),
-        due: `<span class="${(parseFloat(r.due)||0)>0?'negative':''}">${formatCurrency(r.due)}</span>`,
-        payment_method: r.payment_method || ''
-    }));
-
-    const totalAmount = rows.reduce((s,r) => s + (parseFloat(r.amount)||0), 0);
-    const totalDue = rows.reduce((s,r) => s + (parseFloat(r.due)||0), 0);
-    renderSummaryChips('vendorInvoicesSummary', [
-        { label: 'Total Bills', value: formatCurrency(totalAmount) },
-        { label: 'Total Due', value: formatCurrency(totalDue) },
-        { label: 'Invoice Count', value: rows.length }
-    ]);
+function renderVI(rows) {
+    const tb = document.querySelector('#table-vendor_invoices tbody');
+    if (!rows.length) { tb.innerHTML = emptyRow('vendor_invoices'); return; }
+    tb.innerHTML = rows.map(r => '<tr><td>'+(r.vendor||'')+'</td><td>'+(r.invoice_no||'')+'</td><td>'+(r.bill_date||'')+'</td><td>'+(r.purchase_date||'')+'</td><td>'+(r.clear_date||'')+'</td><td class="num">'+fmt(r.amount)+'</td><td class="num">'+fmt(r.cash_paid)+'</td><td class="num">'+fmt(r.owner_paid)+'</td><td class="num '+(parseFloat(r.due)>0?'negative':'')+'">'+fmt(r.due)+'</td><td>'+(r.payment_method||'')+'</td></tr>').join('');
+    summaryChips('vendorInvoicesSummary', [{l:'Total',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0))},{l:'Due',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.due)||0),0))},{l:'Invoices',v:rows.length}]);
 }
 
-// ─── Render: Sales ───
 function renderSales(rows) {
-    renderTable('sales', rows, r => ({
-        ref: r.ref || '',
-        party: r.party || '',
-        type: r.type || '',
-        total: formatCurrency(r.total),
-        payment: r.payment || '',
-        paid: formatCurrency(r.paid),
-        received: formatCurrency(r.received),
-        balance: `<span class="${(parseFloat(r.balance)||0)>0?'negative':''}">${formatCurrency(r.balance)}</span>`
-    }));
-
-    const totalSales = rows.reduce((s,r) => s + (parseFloat(r.total)||0), 0);
-    const totalReceived = rows.reduce((s,r) => s + (parseFloat(r.received)||0), 0);
-    renderSummaryChips('salesSummary', [
-        { label: 'Total Sales', value: formatCurrency(totalSales) },
-        { label: 'Received', value: formatCurrency(totalReceived) },
-        { label: 'Transactions', value: rows.length }
-    ]);
+    const tb = document.querySelector('#table-sales tbody');
+    if (!rows.length) { tb.innerHTML = emptyRow('sales'); return; }
+    tb.innerHTML = rows.map(r => '<tr><td>'+(r.ref||'')+'</td><td>'+(r.party||'')+'</td><td>'+(r.type||'')+'</td><td class="num">'+fmt(r.total)+'</td><td>'+(r.payment||'')+'</td><td class="num">'+fmt(r.paid)+'</td><td class="num">'+fmt(r.received)+'</td><td class="num '+(parseFloat(r.balance)>0?'negative':'')+'">'+fmt(r.balance)+'</td></tr>').join('');
+    summaryChips('salesSummary', [{l:'Total',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},{l:'Received',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.received)||0),0))},{l:'Txns',v:rows.length}]);
 }
 
-// ─── Render: Stock ───
 function renderStock(rows) {
-    renderTable('stock', rows, r => {
-        const status = (parseFloat(r.qty)||0) < 0 ? 'negative' : (parseFloat(r.qty)||0) < 5 ? 'low' : 'ok';
-        return {
-            item_name: r.item_name || '',
-            barcode: r.barcode || '',
-            hsn: r.hsn || '',
-            mrp: formatCurrency(r.mrp),
-            sale_price: formatCurrency(r.sale_price),
-            purchase_price: formatCurrency(r.purchase_price),
-            qty: `<span class="badge badge-${status}">${r.qty||0}</span>`,
-            stock_value: formatCurrency(r.stock_value),
-            status: `<span class="badge badge-${status}">${status.toUpperCase()}</span>`
-        };
-    });
-
-    const totalValue = rows.reduce((s,r) => s + (parseFloat(r.stock_value)||0), 0);
-    const lowStock = rows.filter(r => (parseFloat(r.qty)||0) < 5 && (parseFloat(r.qty)||0) >= 0).length;
-    const negative = rows.filter(r => (parseFloat(r.qty)||0) < 0).length;
-    renderSummaryChips('stockSummary', [
-        { label: 'Total Value', value: formatCurrency(totalValue) },
-        { label: 'Items', value: rows.length },
-        { label: 'Low Stock', value: lowStock },
-        { label: 'Negative', value: negative }
-    ]);
+    const tb = document.querySelector('#table-stock tbody');
+    if (!rows.length) { tb.innerHTML = emptyRow('stock'); return; }
+    tb.innerHTML = rows.map(r => { const st=(parseFloat(r.qty)||0)<0?'negative':(parseFloat(r.qty)||0)<5?'low':'ok'; return '<tr><td>'+(r.item_name||'')+'</td><td>'+(r.barcode||'')+'</td><td>'+(r.hsn||'')+'</td><td class="num">'+fmt(r.mrp)+'</td><td class="num">'+fmt(r.sale_price)+'</td><td class="num">'+fmt(r.purchase_price)+'</td><td class="num"><span class="badge badge-'+st+'">'+(r.qty||0)+'</span></td><td class="num">'+fmt(r.stock_value)+'</td><td><span class="badge badge-'+st+'">'+st.toUpperCase()+'</span></td></tr>'; }).join('');
+    summaryChips('stockSummary', [{l:'Value',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.stock_value)||0),0))},{l:'Items',v:rows.length},{l:'Low',v:rows.filter(r=>(parseFloat(r.qty)||0)<5&&(parseFloat(r.qty)||0)>=0).length},{l:'Negative',v:rows.filter(r=>(parseFloat(r.qty)||0)<0).length}]);
 }
 
-// ─── Render: Attendance ───
-function renderAttendance(rows) {
-    renderTable('attendance', rows, r => ({
-        employee: r.employee || '',
-        check_in: r.check_in || '-',
-        check_out: r.check_out || '-',
-        work_hours: r.work_hours || 0,
-        break_hours: r.break_hours || 0,
-        leave: r.leave || '-'
-    }));
-
-    const totalHours = rows.reduce((s,r) => s + (parseFloat(r.work_hours)||0), 0);
-    renderSummaryChips('attendanceSummary', [
-        { label: 'Employees', value: rows.length },
-        { label: 'Total Hours', value: `${totalHours.toFixed(1)}h` }
-    ]);
+function renderAtt(rows) {
+    const tb = document.querySelector('#table-attendance tbody');
+    if (!rows.length) { tb.innerHTML = emptyRow('attendance'); return; }
+    tb.innerHTML = rows.map(r => '<tr><td>'+(r.employee||'')+'</td><td>'+(r.check_in||'-')+'</td><td>'+(r.check_out||'-')+'</td><td>'+(r.work_hours||0)+'</td><td>'+(r.break_hours||0)+'</td><td>'+(r.leave||'-')+'</td></tr>').join('');
+    summaryChips('attendanceSummary', [{l:'Employees',v:rows.length},{l:'Hours',v:rows.reduce((s,r)=>s+(parseFloat(r.work_hours)||0),0).toFixed(1)+'h'}]);
 }
 
-// ─── Render: Telegram Invoices ───
-function renderTelegramInvoices(rows) {
-    renderTable('telegram_invoices', rows, r => ({
-        sender: r.sender || '',
-        invoice_no: r.invoice_no || '',
-        amount: formatCurrency(r.amount),
-        payment_method: r.payment_method || '',
-        bill_date: r.bill_date || '',
-        clear_date: r.clear_date || ''
-    }));
-
-    const totalAmount = rows.reduce((s,r) => s + (parseFloat(r.amount)||0), 0);
-    renderSummaryChips('telegramInvoicesSummary', [
-        { label: 'Total', value: formatCurrency(totalAmount) },
-        { label: 'Invoices', value: rows.length }
-    ]);
+function renderTG(rows) {
+    const tb = document.querySelector('#table-telegram_invoices tbody');
+    if (!rows.length) { tb.innerHTML = emptyRow('telegram_invoices'); return; }
+    tb.innerHTML = rows.map(r => '<tr><td>'+(r.sender||'')+'</td><td>'+(r.invoice_no||'')+'</td><td class="num">'+fmt(r.amount)+'</td><td>'+(r.payment_method||'')+'</td><td>'+(r.bill_date||'')+'</td><td>'+(r.clear_date||'')+'</td></tr>').join('');
+    summaryChips('telegramInvoicesSummary', [{l:'Total',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0))},{l:'Invoices',v:rows.length}]);
 }
 
-// ─── Render: Reconciliation ───
-function renderReconciliation(rows) {
-    renderTable('reconciliation', rows, r => ({
-        check_type: r.check_type || '',
-        status: `<span class="badge badge-${r.status==='PASS'?'pass':'fail'}">${r.status}</span>`,
-        expected: formatCurrency(r.expected),
-        actual: formatCurrency(r.actual),
-        discrepancy: `<span class="${(parseFloat(r.discrepancy)||0)!==0?'negative':''}">${formatCurrency(r.discrepancy)}</span>`,
-        details: r.details || ''
-    }));
-
-    const cardsEl = document.getElementById('reconCards');
-    if (!rows.length) { cardsEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No reconciliation data for today</p></div>'; return; }
-    let html = '';
-    rows.forEach(r => {
-        const cls = r.status === 'PASS' ? 'pass' : r.status === 'WARN' ? 'warn' : 'fail';
-        const icon = r.status === 'PASS' ? '✅' : r.status === 'WARN' ? '⚠️' : '❌';
-        html += `<div class="recon-card ${cls}">
-            <div class="recon-title">${icon} ${r.check_type}</div>
-            <div class="recon-status" style="color:${cls==='pass'?'var(--green)':cls==='warn'?'var(--orange)':'var(--red)'}">${r.status}</div>
-            ${r.details ? `<div class="recon-detail">${r.details}</div>` : ''}
-            ${(parseFloat(r.discrepancy)||0) !== 0 ? `<div class="recon-detail">Discrepancy: ${formatCurrency(r.discrepancy)}</div>` : ''}
-        </div>`;
-    });
-    cardsEl.innerHTML = html;
+function renderRecon(rows) {
+    const tb = document.querySelector('#table-reconciliation tbody');
+    const cards = document.getElementById('reconCards');
+    if (!rows.length) { tb.innerHTML = emptyRow('reconciliation'); cards.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No reconciliation data</p></div>'; return; }
+    tb.innerHTML = rows.map(r => '<tr><td>'+(r.check_type||'')+'</td><td><span class="badge badge-'+(r.status==='PASS'?'pass':'fail')+'">'+r.status+'</span></td><td class="num">'+fmt(r.expected)+'</td><td class="num">'+fmt(r.actual)+'</td><td class="num '+(parseFloat(r.discrepancy)!==0?'negative':'')+'">'+fmt(r.discrepancy)+'</td><td>'+(r.details||'')+'</td></tr>').join('');
+    cards.innerHTML = rows.map(r => { const c=r.status==='PASS'?'pass':r.status==='WARN'?'warn':'fail'; return '<div class="recon-card '+c+'"><div class="recon-title">'+(r.status==='PASS'?'✅':r.status==='WARN'?'⚠️':'❌')+' '+r.check_type+'</div><div class="recon-status" style="color:'+(c==='pass'?'var(--green)':c==='warn'?'var(--orange)':'var(--red)')+'">'+r.status+'</div>'+(r.details?'<div class="recon-detail">'+r.details+'</div>':'')+'</div>'; }).join('');
 }
 
-// ─── Table Rendering ───
-function renderTable(tableId, rows, cellMapper) {
-    const tbody = document.querySelector(`#table-${tableId} tbody`);
-    if (!tbody) return;
-    if (!rows.length) {
-        const colCount = document.querySelectorAll(`#table-${tableId} th`).length;
-        tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:40px;color:var(--text-3)">No data for this date</td></tr>`;
-        return;
-    }
-    let html = '';
-    rows.forEach(r => {
-        const cells = cellMapper(r);
-        html += '<tr>';
-        Object.values(cells).forEach(v => {
-            const isNum = typeof v === 'string' && (v.startsWith('₹') || v.startsWith('<span'));
-            html += `<td${isNum?' class="num"':''}>${v}</td>`;
-        });
-        html += '</tr>';
-    });
-    tbody.innerHTML = html;
-}
-
-function renderSummaryChips(elId, chips) {
-    const el = document.getElementById(elId);
-    if (!el) return;
-    el.innerHTML = chips.map(c => `<div class="summary-chip"><span class="chip-label">${c.label}</span><span class="chip-value">${c.value}</span></div>`).join('');
-}
-
-// ─── Charts ───
-async function renderSalesTrendChart() {
-    const canvas = document.getElementById('chartSalesTrend');
-    if (!canvas || !supabase) return;
-    const ctx = canvas.getContext('2d');
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
-
+async function renderCharts(sales) {
+    // Sales trend
     try {
-        let query = supabase.from('daily_summaries').select('date, total_sales, total_profit').gte('date', fromDate).order('date');
-        if (currentStore !== 'all') query = query.eq('store', currentStore);
-        const { data, error } = await query;
-        if (error) { console.warn('Sales trend query error:', error); return; }
-
-        const labels = (data || []).map(r => {
-            const d = new Date(r.date);
-            return `${d.getDate()}/${d.getMonth()+1}`;
-        });
-        const salesData = (data || []).map(r => parseFloat(r.total_sales) || 0);
-        const profitData = (data || []).map(r => parseFloat(r.total_profit) || 0);
-
-        if (salesTrendChart) salesTrendChart.destroy();
-        salesTrendChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: 'Sales',
-                        data: salesData,
-                        borderColor: '#0070f3',
-                        backgroundColor: 'rgba(0,112,243,0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#0070f3'
-                    },
-                    {
-                        label: 'Profit',
-                        data: profitData,
-                        borderColor: '#00d68f',
-                        backgroundColor: 'rgba(0,214,143,0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#00d68f'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#a1a1a1', font: { size: 12 } } } },
-                scales: {
-                    x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                    y: { ticks: { color: '#666', callback: v => '₹'+v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.04)' } }
-                }
+        const {data} = await sb.from('daily_summaries').select('date,total_sales,total_profit').order('date');
+        if (data && data.length) {
+            const ctx = document.getElementById('chartSalesTrend')?.getContext('2d');
+            if (ctx) {
+                new Chart(ctx, { type: 'line', data: {
+                    labels: data.map(r => { const d=new Date(r.date); return d.getDate()+'/'+(d.getMonth()+1); }),
+                    datasets: [
+                        {label:'Sales',data:data.map(r=>parseFloat(r.total_sales)||0),borderColor:'#0070f3',backgroundColor:'rgba(0,112,243,0.1)',fill:true,tension:0.4},
+                        {label:'Profit',data:data.map(r=>parseFloat(r.total_profit)||0),borderColor:'#00d68f',backgroundColor:'rgba(0,214,143,0.1)',fill:true,tension:0.4}
+                    ]
+                }, options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#a1a1a1'}}}, scales:{x:{ticks:{color:'#666'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#666'},grid:{color:'rgba(255,255,255,0.04)'}}} } });
             }
-        });
-    } catch (e) {
-        console.warn('Sales trend chart error:', e);
-    }
-}
-
-function renderPaymentMixChart(sales) {
-    const canvas = document.getElementById('chartPaymentMix');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    try {
-        const cashTotal = sales.filter(r => !r.payment || r.payment.toLowerCase().includes('cash')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
-        const upiTotal = sales.filter(r => r.payment && r.payment.toLowerCase().includes('upi')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
-        const otherTotal = sales.reduce((s,r) => s + (parseFloat(r.total)||0), 0) - cashTotal - upiTotal;
-
-        if (paymentMixChart) paymentMixChart.destroy();
-        paymentMixChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Cash', 'UPI', 'Other'],
-                datasets: [{
-                    data: [cashTotal, upiTotal, Math.max(0, otherTotal)],
-                    backgroundColor: ['#0070f3', '#00d68f', '#7928ca'],
-                    borderColor: '#111',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { color: '#a1a1a1', padding: 16, font: { size: 12 } } }
-                }
-            }
-        });
-    } catch (e) {
-        console.warn('Payment mix chart error:', e);
-    }
-}
-
-// ─── Utilities ───
-function formatCurrency(val) {
-    const num = parseFloat(val) || 0;
-    if (num === 0) return '₹0';
-    return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-function sortTable(tableId, field, thEl) {
-    const table = document.getElementById(`table-${tableId}`);
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    const ths = table.querySelectorAll('th');
-
-    const isAsc = sortState[tableId] === field + '-asc';
-    const dir = isAsc ? 'desc' : 'asc';
-    sortState[tableId] = field + '-' + dir;
-
-    ths.forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
-    thEl.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-
-    const colIdx = Array.from(ths).findIndex(th => th.dataset.sort === field);
-
-    rows.sort((a, b) => {
-        let aVal = a.cells[colIdx]?.textContent.trim() || '';
-        let bVal = b.cells[colIdx]?.textContent.trim() || '';
-        const aNum = parseFloat(aVal.replace(/[₹,]/g, ''));
-        const bNum = parseFloat(bVal.replace(/[₹,]/g, ''));
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-            return dir === 'asc' ? aNum - bNum : bNum - aNum;
         }
-        return dir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-    });
-
-    rows.forEach(row => tbody.appendChild(row));
+    } catch(e) {}
+    
+    // Payment mix
+    try {
+        const cash = sales.filter(r=>!r.payment||r.payment.toLowerCase().includes('cash')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+        const upi = sales.filter(r=>r.payment&&r.payment.toLowerCase().includes('upi')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+        const other = sales.reduce((s,r)=>s+(parseFloat(r.total)||0),0)-cash-upi;
+        const ctx = document.getElementById('chartPaymentMix')?.getContext('2d');
+        if (ctx) {
+            new Chart(ctx, { type:'doughnut', data:{labels:['Cash','UPI','Other'],datasets:[{data:[cash,upi,Math.max(0,other)],backgroundColor:['#0070f3','#00d68f','#7928ca'],borderColor:'#111',borderWidth:2}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#a1a1a1',padding:16}}}} });
+        }
+    } catch(e) {}
 }
 
-function filterTable(tableId, query) {
-    const tbody = document.querySelector(`#table-${tableId} tbody`);
-    const rows = tbody.querySelectorAll('tr');
-    const q = query.toLowerCase();
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(q) ? '' : 'none';
-    });
-}
-
-function filterStock(filter) {
-    const tbody = document.querySelector('#table-stock tbody');
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach(row => {
-        const qtyCell = row.cells[6];
-        if (!qtyCell) return;
-        const qty = parseFloat(qtyCell.textContent.replace(/[₹,]/g, '')) || 0;
-        if (filter === 'all') row.style.display = '';
-        else if (filter === 'low') row.style.display = (qty >= 0 && qty < 5) ? '' : 'none';
-        else if (filter === 'negative') row.style.display = qty < 0 ? '' : 'none';
-    });
-}
-
-function showLoading() {
-    const el = document.getElementById('loading');
-    el.classList.remove('hidden');
-}
-
-function hideLoading(force) {
-    const el = document.getElementById('loading');
-    el.classList.add('hidden');
-}
+// ─── Helpers ───
+function emptyRow(table) { const cols = document.querySelectorAll('#table-'+table+' th').length; return '<tr><td colspan="'+cols+'" style="text-align:center;padding:40px;color:#666">No data for this date</td></tr>'; }
+function summaryChips(id, chips) { const el=document.getElementById(id); if(el) el.innerHTML = chips.map(c=>'<div class="summary-chip"><span class="chip-label">'+c.l+'</span><span class="chip-value">'+c.v+'</span></div>').join(''); }
+function setStatus(msg, err) { document.getElementById('connectionStatus').textContent = msg; const dot = document.querySelector('.status-dot'); if(err){dot.classList.add('error');dot.classList.remove('online');}else{dot.classList.add('online');dot.classList.remove('error');} }
+function showLoad() { document.getElementById('loading').style.display = 'flex'; document.getElementById('loading').style.opacity = '1'; document.getElementById('loading').style.pointerEvents = 'auto'; }
+function hideLoad() { document.getElementById('loading').style.display = 'none'; document.getElementById('loading').style.opacity = '0'; document.getElementById('loading').style.pointerEvents = 'none'; }
