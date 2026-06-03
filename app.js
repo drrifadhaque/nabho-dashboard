@@ -5,7 +5,13 @@
 // ─── Supabase Config ───
 const SUPABASE_URL = 'https://hrbutgotfglunmoxjlyb.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyYnV0Z290ZmdsdW5tb3hqbHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjA4NzIsImV4cCI6MjA5NDM5Njg3Mn0.Fp8Fwa1NLyFssN4HcK4m9puUG1-FMchqaQMd7U7zuvs';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let supabase;
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+} catch (e) {
+    console.error('Supabase init failed:', e);
+}
 
 // ─── State ───
 let currentDate = new Date().toISOString().split('T')[0];
@@ -15,13 +21,24 @@ let sortState = {};
 let allDates = [];
 let salesTrendChart = null;
 let paymentMixChart = null;
+let isLoading = false;
 
 // ─── Init ───
 document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
+
+    // Safety: force-hide loading after 15s no matter what
+    setTimeout(() => hideLoading(true), 15000);
+
+    if (!supabase) {
+        document.getElementById('connectionStatus').textContent = 'Supabase init failed';
+        document.querySelector('.status-dot').classList.add('error');
+        hideLoading();
+        return;
+    }
+
     await loadDates();
     await loadAll();
-    hideLoading();
 });
 
 // ─── Event Listeners ───
@@ -136,12 +153,13 @@ async function loadDates() {
 }
 
 async function loadAll() {
+    if (isLoading) return; // Prevent double-loading
+    isLoading = true;
     showLoading();
-    try {
-        const storeFilter = currentStore === 'all' ? undefined : currentStore;
 
-        // Load all data in parallel
-        const [cashbox, vendorInvoices, sales, stock, attendance, telegramInvoices, reconciliation, summaries] = await Promise.all([
+    try {
+        // Load all data in parallel — each has its own error handling
+        const results = await Promise.allSettled([
             loadTable('cashbox'),
             loadTable('vendor_invoices'),
             loadTable('sales'),
@@ -152,6 +170,20 @@ async function loadAll() {
             loadDailySummary()
         ]);
 
+        const cashbox = results[0].status === 'fulfilled' ? results[0].value : [];
+        const vendorInvoices = results[1].status === 'fulfilled' ? results[1].value : [];
+        const sales = results[2].status === 'fulfilled' ? results[2].value : [];
+        const stock = results[3].status === 'fulfilled' ? results[3].value : [];
+        const attendance = results[4].status === 'fulfilled' ? results[4].value : [];
+        const telegramInvoices = results[5].status === 'fulfilled' ? results[5].value : [];
+        const reconciliation = results[6].status === 'fulfilled' ? results[6].value : [];
+        const summary = results[7].status === 'fulfilled' ? results[7].value : null;
+
+        // Log any failures
+        results.forEach((r, i) => {
+            if (r.status === 'rejected') console.warn(`Query ${i} failed:`, r.reason);
+        });
+
         // Update sections
         renderCashbox(cashbox);
         renderVendorInvoices(vendorInvoices);
@@ -160,7 +192,7 @@ async function loadAll() {
         renderAttendance(attendance);
         renderTelegramInvoices(telegramInvoices);
         renderReconciliation(reconciliation);
-        renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summaries);
+        renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summary);
 
         // Update connection status
         document.getElementById('connectionStatus').textContent = 'Connected to Supabase';
@@ -171,27 +203,39 @@ async function loadAll() {
         document.getElementById('connectionStatus').textContent = 'Connection error';
         document.querySelector('.status-dot').classList.add('error');
         document.querySelector('.status-dot').classList.remove('online');
+    } finally {
+        isLoading = false;
+        hideLoading();
     }
-    hideLoading();
 }
 
 async function loadTable(table) {
-    let query = supabase.from(table).select('*').eq('date', currentDate);
-    if (currentStore !== 'all') query = query.eq('store', currentStore);
-    const { data, error } = await query;
-    if (error) {
-        console.warn(`Error loading ${table}:`, error);
+    try {
+        let query = supabase.from(table).select('*').eq('date', currentDate);
+        if (currentStore !== 'all') query = query.eq('store', currentStore);
+        const { data, error } = await query;
+        if (error) {
+            console.warn(`Error loading ${table}:`, error);
+            return [];
+        }
+        return data || [];
+    } catch (e) {
+        console.warn(`Exception loading ${table}:`, e);
         return [];
     }
-    return data || [];
 }
 
 async function loadDailySummary() {
-    let query = supabase.from('daily_summaries').select('*').eq('date', currentDate);
-    if (currentStore !== 'all') query = query.eq('store', currentStore);
-    const { data, error } = await query;
-    if (error || !data || data.length === 0) return null;
-    return data[0];
+    try {
+        let query = supabase.from('daily_summaries').select('*').eq('date', currentDate);
+        if (currentStore !== 'all') query = query.eq('store', currentStore);
+        const { data, error } = await query;
+        if (error || !data || data.length === 0) return null;
+        return data[0];
+    } catch (e) {
+        console.warn('Error loading summary:', e);
+        return null;
+    }
 }
 
 // ─── Render: Overview ───
@@ -202,7 +246,6 @@ function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, s
     const totalStockValue = stock.reduce((s, r) => s + (parseFloat(r.stock_value) || 0), 0);
     const discrepancies = reconciliation.filter(r => r.status !== 'PASS').length;
 
-    // Use summary if available, otherwise calculate
     const profit = summary ? summary.total_profit : 0;
     const closingCash = summary ? summary.closing_cash : 0;
     const closingUpi = summary ? summary.closing_upi : 0;
@@ -220,13 +263,11 @@ function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, s
     document.getElementById('kpi-closing').textContent = formatCurrency(closingCash + closingUpi);
     document.getElementById('kpi-closing-detail').textContent = `Cash: ${formatCurrency(closingCash)} + UPI: ${formatCurrency(closingUpi)}`;
 
-    // Overview cashbox (last 5)
     renderOverviewCashbox(cashbox.slice(-5));
-    // Overview reconciliation
     renderOverviewRecon(reconciliation);
 
-    // Charts
-    renderSalesTrendChart();
+    // Charts — fire and forget, don't block UI
+    renderSalesTrendChart().catch(e => console.warn('Sales chart error:', e));
     renderPaymentMixChart(sales);
 }
 
@@ -275,7 +316,6 @@ function renderCashbox(rows) {
         total: formatCurrency(r.total)
     }));
 
-    // Summary
     const totalCashIn = rows.reduce((s,r) => s + (parseFloat(r.cash_in)||0), 0);
     const totalCashOut = rows.reduce((s,r) => s + (parseFloat(r.cash_out)||0), 0);
     const totalUpiIn = rows.reduce((s,r) => s + (parseFloat(r.upi_in)||0), 0);
@@ -410,7 +450,6 @@ function renderReconciliation(rows) {
         details: r.details || ''
     }));
 
-    // Recon cards
     const cardsEl = document.getElementById('reconCards');
     if (!rows.length) { cardsEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No reconciliation data for today</p></div>'; return; }
     let html = '';
@@ -458,63 +497,67 @@ function renderSummaryChips(elId, chips) {
 // ─── Charts ───
 async function renderSalesTrendChart() {
     const canvas = document.getElementById('chartSalesTrend');
-    if (!canvas) return;
+    if (!canvas || !supabase) return;
     const ctx = canvas.getContext('2d');
 
-    // Fetch last 30 days of summaries
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
 
-    let query = supabase.from('daily_summaries').select('date, total_sales, total_profit').gte('date', fromDate).order('date');
-    if (currentStore !== 'all') query = query.eq('store', currentStore);
-    const { data } = await query;
+    try {
+        let query = supabase.from('daily_summaries').select('date, total_sales, total_profit').gte('date', fromDate).order('date');
+        if (currentStore !== 'all') query = query.eq('store', currentStore);
+        const { data, error } = await query;
+        if (error) { console.warn('Sales trend query error:', error); return; }
 
-    const labels = (data || []).map(r => {
-        const d = new Date(r.date);
-        return `${d.getDate()}/${d.getMonth()+1}`;
-    });
-    const salesData = (data || []).map(r => parseFloat(r.total_sales) || 0);
-    const profitData = (data || []).map(r => parseFloat(r.total_profit) || 0);
+        const labels = (data || []).map(r => {
+            const d = new Date(r.date);
+            return `${d.getDate()}/${d.getMonth()+1}`;
+        });
+        const salesData = (data || []).map(r => parseFloat(r.total_sales) || 0);
+        const profitData = (data || []).map(r => parseFloat(r.total_profit) || 0);
 
-    if (salesTrendChart) salesTrendChart.destroy();
-    salesTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: 'Sales',
-                    data: salesData,
-                    borderColor: '#0070f3',
-                    backgroundColor: 'rgba(0,112,243,0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 3,
-                    pointBackgroundColor: '#0070f3'
-                },
-                {
-                    label: 'Profit',
-                    data: profitData,
-                    borderColor: '#00d68f',
-                    backgroundColor: 'rgba(0,214,143,0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 3,
-                    pointBackgroundColor: '#00d68f'
+        if (salesTrendChart) salesTrendChart.destroy();
+        salesTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Sales',
+                        data: salesData,
+                        borderColor: '#0070f3',
+                        backgroundColor: 'rgba(0,112,243,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#0070f3'
+                    },
+                    {
+                        label: 'Profit',
+                        data: profitData,
+                        borderColor: '#00d68f',
+                        backgroundColor: 'rgba(0,214,143,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#00d68f'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#a1a1a1', font: { size: 12 } } } },
+                scales: {
+                    x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { ticks: { color: '#666', callback: v => '₹'+v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.04)' } }
                 }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#a1a1a1', font: { size: 12 } } } },
-            scales: {
-                x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                y: { ticks: { color: '#666', callback: v => '₹'+v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.04)' } }
             }
-        }
-    });
+        });
+    } catch (e) {
+        console.warn('Sales trend chart error:', e);
+    }
 }
 
 function renderPaymentMixChart(sales) {
@@ -522,30 +565,34 @@ function renderPaymentMixChart(sales) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const cashTotal = sales.filter(r => !r.payment || r.payment.toLowerCase().includes('cash')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
-    const upiTotal = sales.filter(r => r.payment && r.payment.toLowerCase().includes('upi')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
-    const otherTotal = sales.reduce((s,r) => s + (parseFloat(r.total)||0), 0) - cashTotal - upiTotal;
+    try {
+        const cashTotal = sales.filter(r => !r.payment || r.payment.toLowerCase().includes('cash')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+        const upiTotal = sales.filter(r => r.payment && r.payment.toLowerCase().includes('upi')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+        const otherTotal = sales.reduce((s,r) => s + (parseFloat(r.total)||0), 0) - cashTotal - upiTotal;
 
-    if (paymentMixChart) paymentMixChart.destroy();
-    paymentMixChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Cash', 'UPI', 'Other'],
-            datasets: [{
-                data: [cashTotal, upiTotal, Math.max(0, otherTotal)],
-                backgroundColor: ['#0070f3', '#00d68f', '#7928ca'],
-                borderColor: '#111',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { color: '#a1a1a1', padding: 16, font: { size: 12 } } }
+        if (paymentMixChart) paymentMixChart.destroy();
+        paymentMixChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cash', 'UPI', 'Other'],
+                datasets: [{
+                    data: [cashTotal, upiTotal, Math.max(0, otherTotal)],
+                    backgroundColor: ['#0070f3', '#00d68f', '#7928ca'],
+                    borderColor: '#111',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#a1a1a1', padding: 16, font: { size: 12 } } }
+                }
             }
-        }
-    });
+        });
+    } catch (e) {
+        console.warn('Payment mix chart error:', e);
+    }
 }
 
 // ─── Utilities ───
@@ -561,29 +608,23 @@ function sortTable(tableId, field, thEl) {
     const rows = Array.from(tbody.querySelectorAll('tr'));
     const ths = table.querySelectorAll('th');
 
-    // Determine sort direction
     const isAsc = sortState[tableId] === field + '-asc';
     const dir = isAsc ? 'desc' : 'asc';
     sortState[tableId] = field + '-' + dir;
 
-    // Update th classes
     ths.forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
     thEl.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
 
-    // Get column index
     const colIdx = Array.from(ths).findIndex(th => th.dataset.sort === field);
 
     rows.sort((a, b) => {
         let aVal = a.cells[colIdx]?.textContent.trim() || '';
         let bVal = b.cells[colIdx]?.textContent.trim() || '';
-
-        // Try numeric sort
         const aNum = parseFloat(aVal.replace(/[₹,]/g, ''));
         const bNum = parseFloat(bVal.replace(/[₹,]/g, ''));
         if (!isNaN(aNum) && !isNaN(bNum)) {
             return dir === 'asc' ? aNum - bNum : bNum - aNum;
         }
-        // String sort
         return dir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     });
 
@@ -604,7 +645,7 @@ function filterStock(filter) {
     const tbody = document.querySelector('#table-stock tbody');
     const rows = tbody.querySelectorAll('tr');
     rows.forEach(row => {
-        const qtyCell = row.cells[6]; // qty column
+        const qtyCell = row.cells[6];
         if (!qtyCell) return;
         const qty = parseFloat(qtyCell.textContent.replace(/[₹,]/g, '')) || 0;
         if (filter === 'all') row.style.display = '';
@@ -613,5 +654,12 @@ function filterStock(filter) {
     });
 }
 
-function showLoading() { document.getElementById('loading').classList.remove('hidden'); }
-function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
+function showLoading() {
+    const el = document.getElementById('loading');
+    el.classList.remove('hidden');
+}
+
+function hideLoading(force) {
+    const el = document.getElementById('loading');
+    el.classList.add('hidden');
+}
