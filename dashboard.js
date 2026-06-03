@@ -232,33 +232,45 @@ function renderRecon(rows) {
 }
 
 async function renderCharts(sales) {
+    // Destroy existing charts first
+    const existingTrend = Chart.getChart(document.getElementById('chartSalesTrend'));
+    if (existingTrend) existingTrend.destroy();
+    const existingMix = Chart.getChart(document.getElementById('chartPaymentMix'));
+    if (existingMix) existingMix.destroy();
+    
     // Sales trend
     try {
         const {data} = await sb.from('daily_summaries').select('date,total_sales,total_profit').order('date');
         if (data && data.length) {
-            const ctx = document.getElementById('chartSalesTrend')?.getContext('2d');
-            if (ctx) {
+            const canvas = document.getElementById('chartSalesTrend');
+            if (canvas) {
+                canvas.style.height = '250px';
+                canvas.style.maxHeight = '250px';
+                const ctx = canvas.getContext('2d');
                 new Chart(ctx, { type: 'line', data: {
                     labels: data.map(r => { const d=new Date(r.date); return d.getDate()+'/'+(d.getMonth()+1); }),
                     datasets: [
-                        {label:'Sales',data:data.map(r=>parseFloat(r.total_sales)||0),borderColor:'#0070f3',backgroundColor:'rgba(0,112,243,0.1)',fill:true,tension:0.4},
-                        {label:'Profit',data:data.map(r=>parseFloat(r.total_profit)||0),borderColor:'#00d68f',backgroundColor:'rgba(0,214,143,0.1)',fill:true,tension:0.4}
+                        {label:'Sales',data:data.map(r=>parseFloat(r.total_sales)||0),borderColor:'#0070f3',backgroundColor:'rgba(0,112,243,0.1)',fill:true,tension:0.4,borderWidth:2,pointRadius:3},
+                        {label:'Profit',data:data.map(r=>parseFloat(r.total_profit)||0),borderColor:'#00d68f',backgroundColor:'rgba(0,214,143,0.1)',fill:true,tension:0.4,borderWidth:2,pointRadius:3}
                     ]
-                }, options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#a1a1a1'}}}, scales:{x:{ticks:{color:'#666'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#666'},grid:{color:'rgba(255,255,255,0.04)'}}} } });
+                }, options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#a1a1a1',font:{size:11}}}}, scales:{x:{ticks:{color:'#666',font:{size:10},maxRotation:45},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#666',font:{size:10},callback:v=>'₹'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}} } });
             }
         }
-    } catch(e) {}
+    } catch(e) { console.warn('Sales trend chart error:', e); }
     
     // Payment mix
     try {
         const cash = sales.filter(r=>!r.payment||r.payment.toLowerCase().includes('cash')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
         const upi = sales.filter(r=>r.payment&&r.payment.toLowerCase().includes('upi')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
         const other = sales.reduce((s,r)=>s+(parseFloat(r.total)||0),0)-cash-upi;
-        const ctx = document.getElementById('chartPaymentMix')?.getContext('2d');
-        if (ctx) {
-            new Chart(ctx, { type:'doughnut', data:{labels:['Cash','UPI','Other'],datasets:[{data:[cash,upi,Math.max(0,other)],backgroundColor:['#0070f3','#00d68f','#7928ca'],borderColor:'#111',borderWidth:2}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#a1a1a1',padding:16}}}} });
+        const canvas = document.getElementById('chartPaymentMix');
+        if (canvas) {
+            canvas.style.height = '250px';
+            canvas.style.maxHeight = '250px';
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, { type:'doughnut', data:{labels:['Cash','UPI','Other'],datasets:[{data:[cash,upi,Math.max(0,other)],backgroundColor:['#0070f3','#00d68f','#7928ca'],borderColor:'rgba(17,17,17,0.8)',borderWidth:3}]}, options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#a1a1a1',padding:16,font:{size:11}}}}} });
         }
-    } catch(e) {}
+    } catch(e) { console.warn('Payment mix chart error:', e); }
 }
 
 // ─── Helpers ───
