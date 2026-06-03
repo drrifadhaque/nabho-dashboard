@@ -1,873 +1,376 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NabhoBazaar — Audit Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg-page: #f5f0eb;
-  --bg-sidebar: #2c2420;
-  --bg-card: #ffffff;
-  --bg-card-alt: #faf7f4;
-  --text-primary: #2c2420;
-  --text-secondary: #6b5e54;
-  --text-muted: #9c8e82;
-  --text-sidebar: #e8ddd3;
-  --text-sidebar-muted: #9c8e82;
-  --border: #e8ddd3;
-  --border-light: #f0e6db;
-  --accent: #c47d5a;
-  --accent-light: #e8a88a;
-  --accent-bg: rgba(196, 125, 90, 0.08);
-  --success: #5a8a6a;
-  --success-bg: rgba(90, 138, 106, 0.08);
-  --warning: #c49a5a;
-  --warning-bg: rgba(196, 154, 90, 0.08);
-  --danger: #c45a5a;
-  --danger-bg: rgba(196, 90, 90, 0.08);
-  --info: #5a7a9a;
-  --info-bg: rgba(90, 122, 154, 0.08);
-  --shadow-sm: 0 1px 3px rgba(44, 36, 32, 0.04);
-  --shadow-md: 0 4px 12px rgba(44, 36, 32, 0.06);
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-lg: 16px;
-  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --sidebar-w: 240px;
-}
-
-[data-theme="dark"] {
-  --bg-page: #0f0d0b;
-  --bg-sidebar: #0f0d0b;
-  --bg-card: #1a1714;
-  --bg-card-alt: #211e1a;
-  --text-primary: #e8ddd3;
-  --text-secondary: #a89888;
-  --text-muted: #6b5e54;
-  --border: #2c2420;
-  --border-light: #211e1a;
-  --accent: #e8a88a;
-  --accent-light: #c47d5a;
-  --accent-bg: rgba(232, 168, 138, 0.1);
-  --success: #7aba8a;
-  --success-bg: rgba(122, 186, 138, 0.1);
-  --warning: #e8ba7a;
-  --warning-bg: rgba(232, 186, 122, 0.1);
-  --danger: #e87a7a;
-  --danger-bg: rgba(232, 122, 122, 0.1);
-  --info: #7a9aba;
-  --info-bg: rgba(122, 154, 186, 0.1);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  font-family: 'Inter', 'Noto Sans JP', -apple-system, sans-serif;
-  background: var(--bg-page);
-  color: var(--text-primary);
-  line-height: 1.6;
-  transition: background var(--transition), color var(--transition);
-  display: flex;
-  min-height: 100vh;
-}
-
-/* ═══ SIDEBAR ═══ */
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--bg-sidebar);
-  border-right: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  z-index: 100;
-  transition: background var(--transition);
-}
-
-.sidebar-header {
-  padding: 24px 20px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.sidebar-logo .logo-icon {
-  width: 36px;
-  height: 36px;
-  background: var(--accent);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  color: white;
-  font-weight: 700;
-}
-
-.sidebar-logo h1 {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-sidebar);
-  letter-spacing: -0.3px;
-}
-
-.sidebar-logo p {
-  font-size: 11px;
-  color: var(--text-sidebar-muted);
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 12px 8px;
-  overflow-y: auto;
-}
-
-.nav-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-sidebar-muted);
-  padding: 16px 12px 8px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--text-sidebar-muted);
-  cursor: pointer;
-  transition: all var(--transition);
-  font-size: 13px;
-  font-weight: 400;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-}
-
-.nav-item:hover {
-  background: rgba(255,255,255,0.06);
-  color: var(--text-sidebar);
-}
-
-.nav-item.active {
-  background: var(--accent);
-  color: white;
-  font-weight: 500;
-}
-
-.nav-item .icon {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
-}
-
-.nav-item .badge {
-  margin-left: auto;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-weight: 600;
-}
-
-.nav-item .badge.success { background: rgba(122,186,138,0.2); color: #7aba8a; }
-.nav-item .badge.warning { background: rgba(232,186,122,0.2); color: #e8ba7a; }
-.nav-item .badge.danger { background: rgba(232,122,122,0.2); color: #e87a7a; }
-
-.sidebar-footer {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.theme-btn {
-  flex: 1;
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,0.1);
-  background: transparent;
-  color: var(--text-sidebar-muted);
-  cursor: pointer;
-  font-size: 14px;
-  transition: all var(--transition);
-  font-family: inherit;
-}
-
-.theme-btn:hover {
-  border-color: var(--accent);
-  color: var(--text-sidebar);
-}
-
-/* ═══ MAIN CONTENT ═══ */
-.main {
-  margin-left: var(--sidebar-w);
-  flex: 1;
-  min-height: 100vh;
-}
-
-.topbar {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-  padding: 16px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  backdrop-filter: blur(20px);
-}
-
-.topbar-left h2 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.topbar-left p {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.date-input {
-  background: var(--bg-page);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 13px;
-  color: var(--text-primary);
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.refresh-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-page);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  transition: all var(--transition);
-}
-
-.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
-.refresh-btn.spinning svg { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.content {
-  padding: 24px 32px;
-  max-width: 1200px;
-}
-
-/* ═══ STATUS BANNER ═══ */
-.status-banner {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: var(--shadow-sm);
-  animation: slideDown 0.4s ease-out;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
-}
-.status-dot.clean { background: var(--success); }
-.status-dot.warning { background: var(--warning); }
-.status-dot.error { background: var(--danger); }
-@keyframes pulse {
-  0%,100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.3); }
-}
-
-.status-text h3 { font-size: 14px; font-weight: 600; }
-.status-text p { font-size: 11px; color: var(--text-muted); }
-
-/* ═══ KPI GRID ═══ */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.kpi {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition);
-  animation: fadeIn 0.4s ease-out;
-  animation-fill-mode: both;
-}
-.kpi:nth-child(1) { animation-delay: 0.05s; }
-.kpi:nth-child(2) { animation-delay: 0.1s; }
-.kpi:nth-child(3) { animation-delay: 0.15s; }
-.kpi:nth-child(4) { animation-delay: 0.2s; }
-.kpi:nth-child(5) { animation-delay: 0.25s; }
-.kpi:nth-child(6) { animation-delay: 0.3s; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.kpi:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-  border-color: var(--accent);
-}
-
-.kpi-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-
-.kpi-value {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-}
-
-.kpi-sub {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.kpi.accent .kpi-value { color: var(--accent); }
-.kpi.success .kpi-value { color: var(--success); }
-.kpi.warning .kpi-value { color: var(--warning); }
-.kpi.danger .kpi-value { color: var(--danger); }
-.kpi.info .kpi-value { color: var(--info); }
-
-/* ═══ CARDS ═══ */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition);
-}
-
-.card:hover { box-shadow: var(--shadow-md); }
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.card-title {
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.card-badge {
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-weight: 600;
-}
-.card-badge.success { background: var(--success-bg); color: var(--success); }
-.card-badge.warning { background: var(--warning-bg); color: var(--warning); }
-.card-badge.danger { background: var(--danger-bg); color: var(--danger); }
-.card-badge.info { background: var(--info-bg); color: var(--info); }
-
-/* ═══ GRID LAYOUTS ═══ */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-
-/* ═══ TABLES ═══ */
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th {
-  text-align: left;
-  padding: 8px 10px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  border-bottom: 2px solid var(--border);
-  white-space: nowrap;
-}
-td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-light);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-tr:hover td { background: var(--accent-bg); }
-.text-right { text-align: right; }
-.amount { font-variant-numeric: tabular-nums; font-weight: 500; }
-.amount.positive { color: var(--success); }
-.amount.negative { color: var(--danger); }
-
-/* ═══ BAR CHART ═══ */
-.bar-chart { display: flex; flex-direction: column; gap: 6px; }
-.bar-item { display: flex; align-items: center; gap: 10px; }
-.bar-label { width: 110px; font-size: 11px; color: var(--text-secondary); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bar-track { flex: 1; height: 22px; background: var(--border-light); border-radius: 5px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 5px; transition: width 1s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; padding-left: 6px; font-size: 10px; font-weight: 600; color: white; min-width: fit-content; }
-.bar-fill.accent { background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
-.bar-fill.success { background: linear-gradient(90deg, var(--success), #7aba8a); }
-.bar-fill.info { background: linear-gradient(90deg, var(--info), #7a9aba); }
-.bar-value { width: 70px; font-size: 11px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-
-/* ═══ ALERTS ═══ */
-.alert { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 12px; }
-.alert.success { background: var(--success-bg); color: var(--success); border-left: 3px solid var(--success); }
-.alert.warning { background: var(--warning-bg); color: var(--warning); border-left: 3px solid var(--warning); }
-.alert.danger { background: var(--danger-bg); color: var(--danger); border-left: 3px solid var(--danger); }
-.alert.info { background: var(--info-bg); color: var(--info); border-left: 3px solid var(--info); }
-
-/* ═══ PROFIT METER ═══ */
-.profit-meter { text-align: center; padding: 20px; }
-.profit-value { font-size: 42px; font-weight: 700; letter-spacing: -1px; margin: 8px 0; }
-.profit-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-
-/* ═══ MODULE SECTIONS ═══ */
-.module { display: none; animation: fadeIn 0.3s ease-out; }
-.module.active { display: block; }
-
-/* ═══ LOADING ═══ */
-.loading { display: flex; align-items: center; justify-content: center; padding: 60px; flex-direction: column; gap: 12px; }
-.loading-spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-.loading-text { font-size: 12px; color: var(--text-muted); }
-
-/* ═══ RESPONSIVE ═══ */
-@media (max-width: 900px) {
-  .sidebar { width: 60px; }
-  .sidebar .nav-label, .sidebar .nav-item span:not(.icon), .sidebar .nav-item .badge, .sidebar-logo h1, .sidebar-logo p { display: none; }
-  .sidebar .nav-item { justify-content: center; padding: 10px; }
-  .main { margin-left: 60px; }
-  .content { padding: 16px; }
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
-}
-
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-.footer { text-align: center; padding: 24px; font-size: 10px; color: var(--text-muted); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NabhoDashboard — SM Nabho Group</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- ─── Mesh Gradient Background ─── -->
+    <div class="mesh-bg"></div>
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <div class="sidebar-header">
-    <div class="sidebar-logo">
-      <div class="logo-icon">N</div>
-      <div>
-        <h1>NabhoBazaar</h1>
-        <p>Audit Dashboard</p>
-      </div>
-    </div>
-  </div>
-
-  <nav class="sidebar-nav">
-    <div class="nav-label">Today's Audit</div>
-    <button class="nav-item active" data-module="overview"><span class="icon">📊</span><span>Overview</span></button>
-    <button class="nav-item" data-module="sales"><span class="icon">🛒</span><span>Sales</span><span class="badge success" id="navSalesBadge">—</span></button>
-    <button class="nav-item" data-module="purchases"><span class="icon">📦</span><span>Purchases</span><span class="badge warning" id="navPurchBadge">—</span></button>
-    <button class="nav-item" data-module="profit"><span class="icon">💰</span><span>Profit & Loss</span></button>
-    <button class="nav-item" data-module="stock"><span class="icon">📋</span><span>Stock</span><span class="badge danger" id="navStockBadge">—</span></button>
-    <button class="nav-item" data-module="attendance"><span class="icon">👥</span><span>Attendance</span></button>
-    <button class="nav-item" data-module="analytics"><span class="icon">🔍</span><span>Analytics</span></button>
-  </nav>
-
-  <div class="sidebar-footer">
-    <button class="theme-btn" id="themeToggle">🌙</button>
-  </div>
-</aside>
-
-<!-- MAIN -->
-<div class="main">
-  <div class="topbar">
-    <div class="topbar-left">
-      <h2 id="pageTitle">Today's Overview</h2>
-      <p id="pageSub">Cooch Behar — Loading...</p>
-    </div>
-    <div class="topbar-right">
-      <input type="date" class="date-input" id="datePicker">
-      <button class="refresh-btn" id="refreshBtn" title="Refresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg></button>
-    </div>
-  </div>
-
-  <div class="content">
-    <!-- STATUS -->
-    <div class="status-banner">
-      <div class="status-dot clean" id="statusDot"></div>
-      <div class="status-text">
-        <h3 id="statusTitle">Loading...</h3>
-        <p id="statusSub">Fetching today's data</p>
-      </div>
-    </div>
-
-    <!-- KPI -->
-    <div class="kpi-grid">
-      <div class="kpi accent"><div class="kpi-label">Total Sales</div><div class="kpi-value" id="kpiSales">—</div><div class="kpi-sub" id="kpiSalesSub"></div></div>
-      <div class="kpi success"><div class="kpi-label">Cash Sales</div><div class="kpi-value" id="kpiCash">—</div><div class="kpi-sub" id="kpiCashSub"></div></div>
-      <div class="kpi info"><div class="kpi-label">UPI Sales</div><div class="kpi-value" id="kpiUPI">—</div><div class="kpi-sub" id="kpiUPISub"></div></div>
-      <div class="kpi warning"><div class="kpi-label">Vendor Payments</div><div class="kpi-value" id="kpiVendor">—</div><div class="kpi-sub" id="kpiVendorSub"></div></div>
-      <div class="kpi"><div class="kpi-label">Net Position</div><div class="kpi-value" id="kpiNet">—</div><div class="kpi-sub" id="kpiNetSub"></div></div>
-      <div class="kpi danger"><div class="kpi-label">Dues Outstanding</div><div class="kpi-value" id="kpiDue">—</div><div class="kpi-sub" id="kpiDueSub"></div></div>
-    </div>
-
-    <!-- MODULE: OVERVIEW -->
-    <div class="module active" id="mod-overview">
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><div class="card-title">🏦 CashBox Reconciliation</div></div>
-          <table>
-            <tr><td>Opening Cash</td><td class="text-right amount" id="openCash">—</td></tr>
-            <tr><td>+ Cash Sales</td><td class="text-right amount positive" id="addCashSales">—</td></tr>
-            <tr><td>- Vendor Payments</td><td class="text-right amount negative" id="subVendor">—</td></tr>
-            <tr><td>- Expenses</td><td class="text-right amount negative" id="subExpense">—</td></tr>
-            <tr style="font-weight:600"><td>Expected Closing</td><td class="text-right amount" id="expectedClose">—</td></tr>
-            <tr style="font-weight:600"><td>Actual Closing</td><td class="text-right amount" id="actualClose">—</td></tr>
-          </table>
-          <div class="alert success" id="reconAlert" style="margin-top:10px"><span>✅</span><span id="reconText">Calculating...</span></div>
+    <!-- ─── Sidebar ─── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">🫶</div>
+            <div class="brand-text">
+                <span class="brand-name">NabhoDashboard</span>
+                <span class="brand-sub">SM Nabho Group</span>
+            </div>
         </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">🧾 Vendor Invoices Today</div><div class="card-badge info" id="invCount">—</div></div>
-          <div class="table-wrap"><table><thead><tr><th>Vendor</th><th>Invoice#</th><th>Amount</th><th>Status</th></tr></thead><tbody id="vendorTable"></tbody></table></div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <a href="#" class="nav-link active" data-section="overview">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <span>Overview</span>
+            </a>
+            <a href="#" class="nav-link" data-section="cashbox">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/></svg>
+                <span>CashBox</span>
+            </a>
+            <a href="#" class="nav-link" data-section="vendor_invoices">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                <span>Vendor Invoices</span>
+            </a>
+            <a href="#" class="nav-link" data-section="sales">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                <span>Sales</span>
+            </a>
+            <a href="#" class="nav-link" data-section="stock">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                <span>Stock</span>
+            </a>
+            <a href="#" class="nav-link" data-section="attendance">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <span>Attendance</span>
+            </a>
+            <a href="#" class="nav-link" data-section="telegram_invoices">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                <span>Telegram Invoices</span>
+            </a>
+            <a href="#" class="nav-link" data-section="reconciliation">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                <span>Reconciliation</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="status-dot"></div>
+            <span id="connectionStatus">Connecting...</span>
         </div>
-      </div>
+    </aside>
+
+    <!-- ─── Mobile Hamburger ─── -->
+    <button class="hamburger" id="hamburger" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+    </button>
+
+    <!-- ─── Main Content ─── -->
+    <main class="main-content">
+        <!-- ─── Top Bar ─── -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <h1 class="page-title" id="pageTitle">Overview</h1>
+                <span class="page-subtitle" id="pageSubtitle">SM Nabho Group — All Stores</span>
+            </div>
+            <div class="topbar-right">
+                <div class="date-selector">
+                    <button class="date-nav" id="datePrev" title="Previous day">‹</button>
+                    <input type="date" id="datePicker" class="date-input">
+                    <button class="date-nav" id="dateNext" title="Next day">›</button>
+                    <button class="date-today" id="dateToday">Today</button>
+                </div>
+                <div class="store-selector">
+                    <select id="storeSelect" class="store-select">
+                        <option value="all">All Stores</option>
+                        <option value="NabhoBazaarCoochBehar" selected>Cooch Behar</option>
+                        <option value="NabhoBazaarOkrabari">Okrabari</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <!-- ─── Section: Overview ─── -->
+        <section class="section active" id="section-overview">
+            <div class="kpi-grid">
+                <div class="kpi-card kpi-blue">
+                    <div class="kpi-icon">💰</div>
+                    <div class="kpi-body">
+                        <span class="kpi-label">Total Sales</span>
+                        <span class="kpi-value" id="kpi-sales">₹0</span>
+                        <span class="kpi-sub" id="kpi-sales-txn">0 transactions</span>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-green">
+                    <div class="kpi-icon">📈</div>
+                    <div class="kpi-body">
+                        <span class="kpi-label">Profit</span>
+                        <span class="kpi-value" id="kpi-profit">₹0</span>
+                        <span class="kpi-sub" id="kpi-profit-margin">0% margin</span>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-orange">
+                    <div class="kpi-icon">📦</div>
+                    <div class="kpi-body">
+                        <span class="kpi-label">Stock Value</span>
+                        <span class="kpi-value" id="kpi-stock">₹0</span>
+                        <span class="kpi-sub" id="kpi-stock-items">0 items</span>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-purple">
+                    <div class="kpi-icon">🧾</div>
+                    <div class="kpi-body">
+                        <span class="kpi-label">Vendor Bills</span>
+                        <span class="kpi-value" id="kpi-vendor">₹0</span>
+                        <span class="kpi-sub" id="kpi-vendor-count">0 invoices</span>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-red">
+                    <div class="kpi-icon">⚠️</div>
+                    <div class="kpi-body">
+                        <span class="kpi-label">Discrepancies</span>
+                        <span class="kpi-value" id="kpi-discrepancies">0</span>
+                        <span class="kpi-sub" id="kpi-discrepancies-detail">All checks passed</span>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-cyan">
+                    <div class="kpi-icon">💵</div>
+                    <div class="kpi-body">
+                        <span class="kpi-label">Closing Balance</span>
+                        <span class="kpi-value" id="kpi-closing">₹0</span>
+                        <span class="kpi-sub" id="kpi-closing-detail">Cash + UPI</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Sales Trend (Last 30 Days)</h3>
+                    <canvas id="chartSalesTrend" height="220"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Payment Mix</h3>
+                    <canvas id="chartPaymentMix" height="220"></canvas>
+                </div>
+            </div>
+
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <h3>📋 Recent CashBox Activity</h3>
+                    <div class="table-wrap" id="overviewCashbox"></div>
+                </div>
+                <div class="overview-card">
+                    <h3>🔍 Reconciliation Status</h3>
+                    <div id="overviewRecon"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── Section: CashBox ─── -->
+        <section class="section" id="section-cashbox">
+            <div class="section-header">
+                <h2>CashBox</h2>
+                <div class="section-actions">
+                    <input type="text" class="search-input" placeholder="Search transactions..." data-table="cashbox">
+                </div>
+            </div>
+            <div class="summary-bar" id="cashboxSummary"></div>
+            <div class="table-container">
+                <table class="data-table" id="table-cashbox">
+                    <thead>
+                        <tr>
+                            <th data-sort="time">Time</th>
+                            <th data-sort="transaction_type">Type</th>
+                            <th data-sort="ref">Reference</th>
+                            <th data-sort="description">Description</th>
+                            <th data-sort="cash_in">Cash In</th>
+                            <th data-sort="cash_out">Cash Out</th>
+                            <th data-sort="upi_in">UPI In</th>
+                            <th data-sort="upi_out">UPI Out</th>
+                            <th data-sort="owner_paid">Owner Paid</th>
+                            <th data-sort="running_cash">Cash Bal</th>
+                            <th data-sort="running_upi">UPI Bal</th>
+                            <th data-sort="total">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ─── Section: Vendor Invoices ─── -->
+        <section class="section" id="section-vendor_invoices">
+            <div class="section-header">
+                <h2>Vendor Invoices</h2>
+                <div class="section-actions">
+                    <input type="text" class="search-input" placeholder="Search vendors..." data-table="vendor_invoices">
+                </div>
+            </div>
+            <div class="summary-bar" id="vendorInvoicesSummary"></div>
+            <div class="table-container">
+                <table class="data-table" id="table-vendor_invoices">
+                    <thead>
+                        <tr>
+                            <th data-sort="vendor">Vendor</th>
+                            <th data-sort="invoice_no">Invoice #</th>
+                            <th data-sort="bill_date">Bill Date</th>
+                            <th data-sort="purchase_date">Purchase Date</th>
+                            <th data-sort="clear_date">Clear Date</th>
+                            <th data-sort="amount">Amount</th>
+                            <th data-sort="cash_paid">Cash Paid</th>
+                            <th data-sort="owner_paid">Owner Paid</th>
+                            <th data-sort="due">Due</th>
+                            <th data-sort="payment_method">Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ─── Section: Sales ─── -->
+        <section class="section" id="section-sales">
+            <div class="section-header">
+                <h2>Sales</h2>
+                <div class="section-actions">
+                    <input type="text" class="search-input" placeholder="Search sales..." data-table="sales">
+                </div>
+            </div>
+            <div class="summary-bar" id="salesSummary"></div>
+            <div class="table-container">
+                <table class="data-table" id="table-sales">
+                    <thead>
+                        <tr>
+                            <th data-sort="ref">Ref #</th>
+                            <th data-sort="party">Party</th>
+                            <th data-sort="type">Type</th>
+                            <th data-sort="total">Total</th>
+                            <th data-sort="payment">Payment</th>
+                            <th data-sort="paid">Paid</th>
+                            <th data-sort="received">Received</th>
+                            <th data-sort="balance">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ─── Section: Stock ─── -->
+        <section class="section" id="section-stock">
+            <div class="section-header">
+                <h2>Stock / Inventory</h2>
+                <div class="section-actions">
+                    <input type="text" class="search-input" placeholder="Search items..." data-table="stock">
+                    <button class="btn-filter active" data-filter="all">All</button>
+                    <button class="btn-filter" data-filter="low">Low Stock</button>
+                    <button class="btn-filter" data-filter="negative">Negative</button>
+                </div>
+            </div>
+            <div class="summary-bar" id="stockSummary"></div>
+            <div class="table-container">
+                <table class="data-table" id="table-stock">
+                    <thead>
+                        <tr>
+                            <th data-sort="item_name">Item</th>
+                            <th data-sort="barcode">Barcode</th>
+                            <th data-sort="hsn">HSN</th>
+                            <th data-sort="mrp">MRP</th>
+                            <th data-sort="sale_price">Sale Price</th>
+                            <th data-sort="purchase_price">Purchase Price</th>
+                            <th data-sort="qty">Qty</th>
+                            <th data-sort="stock_value">Value</th>
+                            <th data-sort="status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ─── Section: Attendance ─── -->
+        <section class="section" id="section-attendance">
+            <div class="section-header">
+                <h2>Attendance</h2>
+            </div>
+            <div class="summary-bar" id="attendanceSummary"></div>
+            <div class="table-container">
+                <table class="data-table" id="table-attendance">
+                    <thead>
+                        <tr>
+                            <th data-sort="employee">Employee</th>
+                            <th data-sort="check_in">Check In</th>
+                            <th data-sort="check_out">Check Out</th>
+                            <th data-sort="work_hours">Work Hours</th>
+                            <th data-sort="break_hours">Break Hours</th>
+                            <th data-sort="leave">Leave</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ─── Section: Telegram Invoices ─── -->
+        <section class="section" id="section-telegram_invoices">
+            <div class="section-header">
+                <h2>Telegram Invoices</h2>
+                <div class="section-actions">
+                    <input type="text" class="search-input" placeholder="Search..." data-table="telegram_invoices">
+                </div>
+            </div>
+            <div class="summary-bar" id="telegramInvoicesSummary"></div>
+            <div class="table-container">
+                <table class="data-table" id="table-telegram_invoices">
+                    <thead>
+                        <tr>
+                            <th data-sort="sender">Sender</th>
+                            <th data-sort="invoice_no">Invoice #</th>
+                            <th data-sort="amount">Amount</th>
+                            <th data-sort="payment_method">Payment</th>
+                            <th data-sort="bill_date">Bill Date</th>
+                            <th data-sort="clear_date">Clear Date</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ─── Section: Reconciliation ─── -->
+        <section class="section" id="section-reconciliation">
+            <div class="section-header">
+                <h2>Reconciliation</h2>
+            </div>
+            <div class="recon-cards" id="reconCards"></div>
+            <div class="table-container">
+                <table class="data-table" id="table-reconciliation">
+                    <thead>
+                        <tr>
+                            <th data-sort="check_type">Check Type</th>
+                            <th data-sort="status">Status</th>
+                            <th data-sort="expected">Expected</th>
+                            <th data-sort="actual">Actual</th>
+                            <th data-sort="discrepancy">Discrepancy</th>
+                            <th data-sort="details">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- ─── Loading Overlay ─── -->
+    <div class="loading-overlay" id="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading data...</p>
     </div>
 
-    <!-- MODULE: SALES -->
-    <div class="module" id="mod-sales">
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><div class="card-title">👥 Top Customers</div></div>
-          <div class="bar-chart" id="customerChart"></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">🏆 Top Items by Revenue</div></div>
-          <div class="bar-chart" id="itemChart"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">📝 All Sales</div><div class="card-badge info" id="salesCount">—</div></div>
-        <div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Payment</th></tr></thead><tbody id="salesTable"></tbody></table></div>
-      </div>
-    </div>
-
-    <!-- MODULE: PURCHASES -->
-    <div class="module" id="mod-purchases">
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><div class="card-title">📊 Purchase Summary</div></div>
-          <table>
-            <tr><td>Total Purchases</td><td class="text-right amount" id="totalPurchases">—</td></tr>
-            <tr><td>Cash Paid</td><td class="text-right amount" id="purchCash">—</td></tr>
-            <tr><td>Owner Paid (Axis)</td><td class="text-right amount" id="purchOwner">—</td></tr>
-            <tr><td>Due (Unpaid)</td><td class="text-right amount negative" id="purchDue">—</td></tr>
-          </table>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">🏪 Vendor-wise</div></div>
-          <div class="bar-chart" id="vendorChart"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODULE: PROFIT -->
-    <div class="module" id="mod-profit">
-      <div class="grid-2">
-        <div class="card">
-          <div class="profit-meter">
-            <div class="profit-label">Today's Profit</div>
-            <div class="profit-value" id="profitValue">—</div>
-            <div class="profit-label">Based on pricing engine</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">🏆 Most Profitable Items</div></div>
-          <div class="bar-chart" id="profitChart"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODULE: STOCK -->
-    <div class="module" id="mod-stock">
-      <div class="grid-3">
-        <div class="card">
-          <div class="card-header"><div class="card-title">📦 Stock Summary</div></div>
-          <table><tr><td>Total Items</td><td class="text-right amount" id="stockTotal">—</td></tr><tr><td>Stock Value</td><td class="text-right amount" id="stockValue">—</td></tr></table>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">⚠️ Low Stock</div><div class="card-badge warning" id="lowStockCount">—</div></div>
-          <div id="lowStockList" style="max-height:200px;overflow-y:auto"></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">🔴 Negative Stock</div><div class="card-badge danger" id="negStockCount">—</div></div>
-          <div id="negStockList" style="max-height:200px;overflow-y:auto"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODULE: ATTENDANCE -->
-    <div class="module" id="mod-attendance">
-      <div class="card">
-        <div class="card-header"><div class="card-title">👥 Today's Attendance</div></div>
-        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Type</th><th>Check In</th><th>Check Out</th><th>Work Hours</th><th>Break</th></tr></thead><tbody id="attendanceTable"></tbody></table></div>
-      </div>
-    </div>
-
-    <!-- MODULE: ANALYTICS -->
-    <div class="module" id="mod-analytics">
-      <div class="card">
-        <div class="card-header"><div class="card-title">📝 All Transactions</div><div class="card-badge info" id="txnCount">—</div></div>
-        <div class="table-wrap"><table><thead><tr><th>Ref</th><th>Party</th><th>Type</th><th>Total</th><th>Payment</th><th>Paid</th><th>Received</th><th>Balance</th></tr></thead><tbody id="txnTable"></tbody></table></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">📦 All Items Sold</div></div>
-        <div class="table-wrap"><table><thead><tr><th>Item</th><th>Invoice</th><th>Qty</th><th>Unit Price</th><th>Tax</th><th>Amount</th></tr></thead><tbody id="itemsTable"></tbody></table></div>
-      </div>
-    </div>
-
-    <div class="footer">NabhoBazaar Audit System · Built by Sage 🫶</div>
-  </div>
-</div>
-
-<script>
-/* THEME */
-const themeToggle = document.getElementById('themeToggle');
-const html = document.documentElement;
-function setTheme(t) {
-  html.setAttribute('data-theme', t);
-  themeToggle.textContent = t === 'dark' ? '☀️' : '🌙';
-  localStorage.setItem('nabho-theme', t);
-}
-themeToggle.addEventListener('click', () => setTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-setTheme(localStorage.getItem('nabho-theme') || 'light');
-
-/* NAV */
-const navItems = document.querySelectorAll('.nav-item');
-const modules = document.querySelectorAll('.module');
-const pageTitles = {
-  overview: "Today's Overview",
-  sales: "Sales Analytics",
-  purchases: "Purchase Analytics",
-  profit: "Profit & Loss",
-  stock: "Stock Summary",
-  attendance: "Staff Attendance",
-  analytics: "Full Analytics"
-};
-
-navItems.forEach(item => {
-  item.addEventListener('click', () => {
-    navItems.forEach(n => n.classList.remove('active'));
-    modules.forEach(m => m.classList.remove('active'));
-    item.classList.add('active');
-    document.getElementById('mod-' + item.dataset.module).classList.add('active');
-    document.getElementById('pageTitle').textContent = pageTitles[item.dataset.module] || '';
-  });
-});
-
-/* HELPERS */
-function fmt(n) { return n == null || isNaN(n) ? '—' : '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:0}); }
-function fmtD(n) { return n == null || isNaN(n) ? '—' : '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-
-/* LOAD */
-async function loadData() {
-  const btn = document.getElementById('refreshBtn');
-  btn.classList.add('spinning');
-  try {
-    const r = await fetch('data.json?' + Date.now());
-    const d = await r.json();
-    render(d);
-  } catch(e) {
-    document.getElementById('statusTitle').textContent = 'Failed to load';
-    document.getElementById('statusSub').textContent = e.message;
-  } finally {
-    btn.classList.remove('spinning');
-  }
-}
-
-function render(data) {
-  const store = data.stores?.NabhoBazaarCoochBehar?.data;
-  if (!store) { document.getElementById('statusTitle').textContent = 'No data'; return; }
-  const s = store.summary;
-  const hasData = s.total_sales > 0 || s.closing_cash > 0;
-
-  document.getElementById('pageSub').textContent = `Cooch Behar · ${data.date}`;
-  document.getElementById('statusDot').className = 'status-dot ' + (hasData ? 'clean' : 'warning');
-  document.getElementById('statusTitle').textContent = hasData ? 'System Clean — All Reconciled ✅' : 'No transactions today';
-  document.getElementById('statusSub').textContent = `Generated ${new Date(data.generated_at).toLocaleString()}`;
-
-  // KPIs
-  document.getElementById('kpiSales').textContent = fmt(s.total_sales);
-  document.getElementById('kpiSalesSub').textContent = `${s.txn_count} transactions`;
-  document.getElementById('kpiCash').textContent = fmt(s.cash_sales);
-  document.getElementById('kpiCashSub').textContent = s.total_sales ? `${((s.cash_sales/s.total_sales)*100).toFixed(0)}% of sales` : '';
-  document.getElementById('kpiUPI').textContent = fmt(s.upi_sales);
-  document.getElementById('kpiUPISub').textContent = s.total_sales ? `${((s.upi_sales/s.total_sales)*100).toFixed(0)}% of sales` : '';
-  document.getElementById('kpiVendor').textContent = fmt(s.total_vendor_inv);
-  document.getElementById('kpiVendorSub').textContent = `Cash: ${fmt(s.total_cash_paid)}`;
-  document.getElementById('kpiNet').textContent = fmt(s.closing_total);
-  document.getElementById('kpiNetSub').textContent = `Cash: ${fmt(s.closing_cash)} · UPI: ${fmt(s.closing_upi)}`;
-  document.getElementById('kpiDue').textContent = fmt(s.total_due);
-  document.getElementById('kpiDueSub').textContent = s.total_due > 0 ? 'Outstanding' : 'All clear';
-
-  // Nav badges
-  document.getElementById('navSalesBadge').textContent = s.txn_count;
-  document.getElementById('navPurchBadge').textContent = store.vendor_invoices.length;
-  document.getElementById('navStockBadge').textContent = store.low_stock.length + store.negative_stock.length;
-
-  // Overview
-  document.getElementById('openCash').textContent = fmt(s.opening_cash);
-  document.getElementById('addCashSales').textContent = '+' + fmt(s.cash_sales);
-  document.getElementById('subVendor').textContent = '-' + fmt(s.total_vendor_cash);
-  document.getElementById('subExpense').textContent = '-' + fmt(s.total_expenses);
-  const expected = s.opening_cash + s.cash_sales - s.total_vendor_cash - s.total_expenses;
-  document.getElementById('expectedClose').textContent = fmt(expected);
-  document.getElementById('actualClose').textContent = fmt(s.closing_cash);
-  const diff = s.closing_cash - expected;
-  document.getElementById('reconText').textContent = diff === 0 ? 'Perfect — ₹0 discrepancy' : `Discrepancy: ${fmt(Math.abs(diff))}`;
-  document.getElementById('reconAlert').className = 'alert ' + (diff === 0 ? 'success' : 'danger');
-
-  // Vendor Invoices
-  document.getElementById('invCount').textContent = `${store.vendor_invoices.length} invoices`;
-  const vtb = document.getElementById('vendorTable');
-  vtb.innerHTML = '';
-  store.vendor_invoices.forEach(v => {
-    const st = v.due > 0 ? '⚠️ Due' : (v.owner_paid > 0 ? '🏦 Owner' : '✅ Paid');
-    const bc = v.due > 0 ? 'warning' : 'success';
-    vtb.innerHTML += `<tr><td>${v.vendor}</td><td>${v.invoice_no}</td><td class="text-right amount">${fmt(v.amount)}</td><td><span class="card-badge ${bc}">${st}</span></td></tr>`;
-  });
-
-  // Sales
-  document.getElementById('salesCount').textContent = `${store.sales.length} sales`;
-  const cChart = document.getElementById('customerChart');
-  cChart.innerHTML = '';
-  const mc = store.top_customers[0]?.total || 1;
-  store.top_customers.forEach(c => {
-    cChart.innerHTML += `<div class="bar-item"><div class="bar-label">${c.name}</div><div class="bar-track"><div class="bar-fill accent" style="width:${(c.total/mc*100).toFixed(0)}%">${c.count}x</div></div><div class="bar-value">${fmt(c.total)}</div></div>`;
-  });
-  const iChart = document.getElementById('itemChart');
-  iChart.innerHTML = '';
-  const mi = store.top_items[0]?.revenue || 1;
-  store.top_items.slice(0,10).forEach(i => {
-    iChart.innerHTML += `<div class="bar-item"><div class="bar-label">${i.name.substring(0,18)}</div><div class="bar-track"><div class="bar-fill info" style="width:${(i.revenue/mi*100).toFixed(0)}%">${i.qty}x</div></div><div class="bar-value">${fmt(i.revenue)}</div></div>`;
-  });
-  const stb = document.getElementById('salesTable');
-  stb.innerHTML = '';
-  store.sales.forEach(s => { stb.innerHTML += `<tr><td>${s.ref}</td><td>${s.party}</td><td class="text-right amount">${fmt(s.total)}</td><td>${s.payment}</td></tr>`; });
-
-  // Purchases
-  document.getElementById('totalPurchases').textContent = fmt(s.total_vendor_inv);
-  document.getElementById('purchCash').textContent = fmt(s.total_cash_paid);
-  document.getElementById('purchOwner').textContent = fmt(s.total_owner_paid);
-  document.getElementById('purchDue').textContent = fmt(s.total_due);
-  const vChart = document.getElementById('vendorChart');
-  vChart.innerHTML = '';
-  const vg = {};
-  store.vendor_invoices.forEach(v => { vg[v.vendor] = (vg[v.vendor]||0) + v.amount; });
-  const sv = Object.entries(vg).sort((a,b) => b[1]-a[1]);
-  const mv = sv[0]?.[1] || 1;
-  sv.forEach(([n,a]) => { vChart.innerHTML += `<div class="bar-item"><div class="bar-label">${n.substring(0,18)}</div><div class="bar-track"><div class="bar-fill accent" style="width:${(a/mv*100).toFixed(0)}%"></div></div><div class="bar-value">${fmt(a)}</div></div>`; });
-
-  // Profit
-  document.getElementById('profitValue').textContent = fmt(s.total_profit);
-  document.getElementById('profitValue').style.color = s.total_profit >= 0 ? 'var(--success)' : 'var(--danger)';
-  const pChart = document.getElementById('profitChart');
-  pChart.innerHTML = '';
-  const mp = store.item_profits[0]?.profit || 1;
-  store.item_profits.forEach(p => { pChart.innerHTML += `<div class="bar-item"><div class="bar-label">${p.item.substring(0,18)}</div><div class="bar-track"><div class="bar-fill success" style="width:${(p.profit/mp*100).toFixed(0)}%">${p.qty}x</div></div><div class="bar-value">${fmt(p.profit)}</div></div>`; });
-
-  // Stock
-  document.getElementById('stockTotal').textContent = `${store.stock_count} items`;
-  document.getElementById('stockValue').textContent = fmt(s.total_stock_value);
-  document.getElementById('lowStockCount').textContent = `${store.low_stock.length}`;
-  document.getElementById('negStockCount').textContent = `${store.negative_stock.length}`;
-  const lsl = document.getElementById('lowStockList');
-  lsl.innerHTML = '';
-  store.low_stock.forEach(i => { lsl.innerHTML += `<div class="alert warning"><span>⚠️</span> ${i.item} — ${i.stock_qty} left</div>`; });
-  const nsl = document.getElementById('negStockList');
-  nsl.innerHTML = '';
-  store.negative_stock.forEach(i => { nsl.innerHTML += `<div class="alert danger"><span>🔴</span> ${i.item} — ${i.stock_qty}</div>`; });
-
-  // Attendance
-  const atb = document.getElementById('attendanceTable');
-  atb.innerHTML = '';
-  store.attendance.forEach(a => { atb.innerHTML += `<tr><td>${a.employee}</td><td>${a.type}</td><td>${a.checkin}</td><td>${a.checkout}</td><td>${a.work_hours}</td><td>${a.break_hours}</td></tr>`; });
-  if (!store.attendance.length) atb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No records</td></tr>';
-
-  // Analytics
-  document.getElementById('txnCount').textContent = `${store.all_transactions.length} transactions`;
-  const ttb = document.getElementById('txnTable');
-  ttb.innerHTML = '';
-  store.all_transactions.forEach(t => {
-    const tc = 'Sale' in t.type ? 'positive' : 'negative';
-    ttb.innerHTML += `<tr><td>${t.ref}</td><td>${t.party}</td><td>${t.type}</td><td class="text-right amount ${tc}">${fmt(t.total)}</td><td>${t.payment}</td><td class="text-right amount">${fmt(t.paid)}</td><td class="text-right amount">${fmt(t.received)}</td><td class="text-right amount">${t.balance>0?fmt(t.balance):'—'}</td></tr>`;
-  });
-  const itb = document.getElementById('itemsTable');
-  itb.innerHTML = '';
-  store.all_items.filter(i => 'Sale' in i.txn_type).forEach(i => { itb.innerHTML += `<tr><td>${i.item}</td><td>${i.inv_no}</td><td class="text-right">${i.qty}</td><td class="text-right amount">${fmtD(i.unit_price)}</td><td class="text-right amount">${fmtD(i.tax)}</td><td class="text-right amount">${fmt(i.amount)}</td></tr>`; });
-}
-
-/* INIT */
-document.getElementById('datePicker').valueAsDate = new Date();
-document.getElementById('datePicker').addEventListener('change', loadData);
-document.getElementById('refreshBtn').addEventListener('click', loadData);
-loadData();
-setInterval(loadData, 300000);
-</script>
+    <script src="app.js"></script>
 </body>
 </html>
