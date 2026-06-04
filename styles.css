@@ -324,8 +324,16 @@ body {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 70vh;
+    -webkit-overflow-scrolling: touch;
 }
+.table-container::-webkit-scrollbar { width: 6px; height: 8px; }
+.table-container::-webkit-scrollbar-track { background: transparent; }
+.table-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+.table-container::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+.table-container::-webkit-scrollbar-corner { background: transparent; }
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 .data-table {
@@ -408,11 +416,7 @@ body {
 .data-table .badge-low { background: var(--orange-bg); color: var(--orange); }
 .data-table .badge-negative { background: var(--red-bg); color: var(--red); }
 
-.table-container { max-height: 70vh; overflow: auto; }
-.table-container::-webkit-scrollbar { width: 6px; height: 6px; }
-.table-container::-webkit-scrollbar-track { background: transparent; }
-.table-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-.table-container::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
 
 /* ─── Reconciliation Cards ─── */
 .recon-cards {
