@@ -111,10 +111,21 @@ async function loadAll() {
             if (sf) query = query.eq('store', sf);
             return query.then(({data,error}) => { if(error) console.warn(table,error); return data||[]; });
         };
-        const qStock = () => {
-            let query = sb.from('stock').select('*').limit(5000);
-            if (sf) query = query.eq('store', sf);
-            return query.then(({data,error}) => { if(error) console.warn('stock',error); return data||[]; });
+        const qStock = async () => {
+            let allRows = [];
+            let offset = 0;
+            const pageSize = 1000;
+            while (true) {
+                let query = sb.from('stock').select('*').range(offset, offset + pageSize - 1);
+                if (sf) query = query.eq('store', sf);
+                const {data, error} = await query;
+                if (error) { console.warn('stock', error); break; }
+                if (!data || !data.length) break;
+                allRows = allRows.concat(data);
+                if (data.length < pageSize) break;
+                offset += pageSize;
+            }
+            return allRows;
         };
         
         const [cb, vi, sl, st, att, tg, rc, sm] = await Promise.allSettled([
