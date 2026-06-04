@@ -164,7 +164,7 @@ function renderOverview(cb, vi, sl, st, rc, sm) {
     document.getElementById('kpi-sales').textContent = fmt(totalSales);
     document.getElementById('kpi-sales-txn').textContent = txnCount+' transactions (Cash '+fmt(cashSales)+' + UPI '+fmt(upiSales)+')';
     document.getElementById('kpi-profit').textContent = fmt(p);
-    document.getElementById('kpi-profit-margin').textContent = ts>0?((p/ts*100).toFixed(1)+'% margin'):'0%';
+    document.getElementById('kpi-profit-margin').textContent = totalSales>0?((p/totalSales*100).toFixed(1)+'% margin'):'0%';
     document.getElementById('kpi-stock').textContent = fmt(sm?.total_stock_value);
     document.getElementById('kpi-stock-items').textContent = st.length+' items';
     document.getElementById('kpi-vendor').textContent = fmt(vi.reduce((s,r) => s+(parseFloat(r.amount)||0), 0));
