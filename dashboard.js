@@ -158,6 +158,7 @@ async function loadAll() {
         ]);
         
         const cashbox = cb.status==='fulfilled'?cb.value:[];
+        window._cashboxData = cashbox;
         const vendorInvoices = vi.status==='fulfilled'?vi.value:[];
         const sales = sl.status==='fulfilled'?sl.value:[];
         const stock = st.status==='fulfilled'?st.value:[];
@@ -315,28 +316,41 @@ function renderVI(rows) {
 }
 
 function renderSales(rows) {
-    const tb = document.querySelector('#table-sales tbody');
-    if (!rows.length) { tb.innerHTML = emptyRow('sales'); return; }
-    tb.innerHTML = rows.map(r => '<tr><td>'+(r.ref||'')+'</td><td>'+(r.party||'')+'</td><td>'+(r.type||'')+'</td><td class="num">'+fmt(r.total)+'</td><td>'+(r.payment||'')+'</td><td class="num">'+fmt(r.paid)+'</td><td class="num">'+fmt(r.received)+'</td><td class="num '+(parseFloat(r.balance)>0?'negative':'')+'">'+fmt(r.balance)+'</td></tr>').join('');
-    // Breakdown by type
-    const poSale = rows.filter(r=>r.type&&r.type.includes('Sale'));
-    const purchases = rows.filter(r=>r.type&&r.type.includes('Purchase'));
-    const expenses = rows.filter(r=>r.type&&r.type.includes('Expense'));
-    const saleTotal = poSale.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
-    const purTotal = purchases.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
-    const expTotal = expenses.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
-    // Payment breakdown for sales
+    renderAllTxn(rows, window._cashboxData || []);
+}
+
+function renderAllTxn(vyapar, cashbox) {
+    // Vyapar table (left side)
+    const vt = document.querySelector('#table-sales tbody');
+    if (!vyapar.length) { vt.innerHTML = emptyRow('sales'); } else {
+        vt.innerHTML = vyapar.map(r => '<tr><td>'+(r.ref||'')+'</td><td>'+(r.party||'')+'</td><td>'+(r.type||'')+'</td><td class="num">'+fmt(r.total)+'</td><td>'+(r.payment||'')+'</td></tr>').join('');
+    }
+    // CashBox table (right side)
+    const ct = document.querySelector('#table-cb-txn tbody');
+    if (!cashbox.length) { ct.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-3)">No CashBox data</td></tr>'; } else {
+        ct.innerHTML = cashbox.map(r => {
+            const amt = (parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0)-(parseFloat(r.cash_out)||0)-(parseFloat(r.upi_out)||0);
+            return '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.description||'')+'</td><td class="num">'+fmt(amt)+'</td></tr>';
+        }).join('');
+    }
+    // Summary chips
+    const poSale = vyapar.filter(r=>r.type&&r.type.includes('Sale'));
+    const purchases = vyapar.filter(r=>r.type&&r.type.includes('Purchase'));
+    const expenses = vyapar.filter(r=>r.type&&r.type.includes('Expense'));
     const cashSales = poSale.filter(r=>r.payment&&r.payment.toLowerCase().includes('cash'));
     const iobSales = poSale.filter(r=>r.payment&&r.payment.toLowerCase().includes('overseas'));
-    const cashAmt = cashSales.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
-    const iobAmt = iobSales.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+    const cbCashIn = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0);
+    const cbCashOut = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_out)||0),0);
+    const cbUpiIn = cashbox.reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0);
     summaryChips('salesSummary', [
-        {l:'Total Sales',v:fmt(saleTotal)},
-        {l:'Cash',v:fmt(cashAmt)},
-        {l:'IOB (UPI)',v:fmt(iobAmt)},
-        {l:'Purchases',v:fmt(purTotal)},
-        {l:'Expenses',v:fmt(expTotal)},
-        {l:'All Txns',v:rows.length}
+        {l:'Vyapar Sales',v:fmt(poSale.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
+        {l:'Cash',v:fmt(cashSales.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
+        {l:'IOB (UPI)',v:fmt(iobSales.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
+        {l:'Purchases',v:fmt(purchases.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
+        {l:'Expenses',v:fmt(expenses.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
+        {l:'CB Cash In',v:fmt(cbCashIn)},
+        {l:'CB Cash Out',v:fmt(cbCashOut)},
+        {l:'CB UPI In',v:fmt(cbUpiIn)}
     ]);
 }
 
