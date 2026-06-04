@@ -60,7 +60,7 @@ function setupNav() {
             link.classList.add('active');
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
             document.getElementById('section-'+s).classList.add('active');
-            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'Sales',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation',bank_reconciliation:'Bank Reconciliation'};
+            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'All Transactions',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation',bank_reconciliation:'Bank Reconciliation'};
             document.getElementById('pageTitle').textContent = t[s]||s;
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('hamburger').classList.remove('active');
@@ -239,12 +239,16 @@ function renderMiniSummaries(cb, vi, sl, st, att, tg, rc, sm) {
         stat('Due', fmt(vi.reduce((s,r)=>s+(parseFloat(r.due)||0),0)), vi.reduce((s,r)=>s+(parseFloat(r.due)||0),0)>0?'negative':'') +
         stat('Invoices', vi.length));
     
+    const poSaleTxns = sl.filter(r=>r.type&&r.type.includes('Sale'));
+    const cashTxns = poSaleTxns.filter(r=>r.payment&&r.payment.toLowerCase().includes('cash'));
+    const iobTxns = poSaleTxns.filter(r=>r.payment&&r.payment.toLowerCase().includes('overseas'));
     el('miniSalesBody',
-        stat('Total Sales', fmt(sl.reduce((s,r)=>s+(parseFloat(r.total)||0),0))) +
-        stat('PoS Sales', sl.filter(r=>r.type&&r.type.includes('Sale')).length) +
-        stat('Purchases', sl.filter(r=>r.type&&r.type.includes('Purchase')).length) +
-        stat('Expenses', sl.filter(r=>r.type&&r.type.includes('Expense')).length) +
-        stat('Transactions', sl.length));
+        stat('Total Sales', fmt(poSaleTxns.reduce((s,r)=>s+(parseFloat(r.total)||0),0))) +
+        stat('Cash', fmt(cashTxns.reduce((s,r)=>s+(parseFloat(r.total)||0),0))) +
+        stat('IOB (UPI)', fmt(iobTxns.reduce((s,r)=>s+(parseFloat(r.total)||0),0))) +
+        stat('Purchases', fmt(sl.filter(r=>r.type&&r.type.includes('Purchase')).reduce((s,r)=>s+(parseFloat(r.total)||0),0))) +
+        stat('Expenses', fmt(sl.filter(r=>r.type&&r.type.includes('Expense')).reduce((s,r)=>s+(parseFloat(r.total)||0),0))) +
+        stat('All Txns', sl.length));
     
     const totalVal = st.reduce((s,r)=>s+(parseFloat(r.stock_value)||0),0);
     const low = st.filter(r=>(parseFloat(r.qty)||0)<5&&(parseFloat(r.qty)||0)>=0).length;
@@ -314,7 +318,26 @@ function renderSales(rows) {
     const tb = document.querySelector('#table-sales tbody');
     if (!rows.length) { tb.innerHTML = emptyRow('sales'); return; }
     tb.innerHTML = rows.map(r => '<tr><td>'+(r.ref||'')+'</td><td>'+(r.party||'')+'</td><td>'+(r.type||'')+'</td><td class="num">'+fmt(r.total)+'</td><td>'+(r.payment||'')+'</td><td class="num">'+fmt(r.paid)+'</td><td class="num">'+fmt(r.received)+'</td><td class="num '+(parseFloat(r.balance)>0?'negative':'')+'">'+fmt(r.balance)+'</td></tr>').join('');
-    summaryChips('salesSummary', [{l:'Total',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},{l:'Received',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.received)||0),0))},{l:'Txns',v:rows.length}]);
+    // Breakdown by type
+    const poSale = rows.filter(r=>r.type&&r.type.includes('Sale'));
+    const purchases = rows.filter(r=>r.type&&r.type.includes('Purchase'));
+    const expenses = rows.filter(r=>r.type&&r.type.includes('Expense'));
+    const saleTotal = poSale.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+    const purTotal = purchases.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+    const expTotal = expenses.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+    // Payment breakdown for sales
+    const cashSales = poSale.filter(r=>r.payment&&r.payment.toLowerCase().includes('cash'));
+    const iobSales = poSale.filter(r=>r.payment&&r.payment.toLowerCase().includes('overseas'));
+    const cashAmt = cashSales.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+    const iobAmt = iobSales.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+    summaryChips('salesSummary', [
+        {l:'Total Sales',v:fmt(saleTotal)},
+        {l:'Cash',v:fmt(cashAmt)},
+        {l:'IOB (UPI)',v:fmt(iobAmt)},
+        {l:'Purchases',v:fmt(purTotal)},
+        {l:'Expenses',v:fmt(expTotal)},
+        {l:'All Txns',v:rows.length}
+    ]);
 }
 
 function renderStock(rows) {
