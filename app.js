@@ -240,8 +240,19 @@ async function loadDailySummary() {
 
 // ─── Render: Overview ───
 function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summary) {
-    const totalSales = sales.reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
-    const txnCount = sales.length;
+    // Use summary data for sales if available (more accurate, from CashBox), fallback to Vyapar sales table
+    let totalSales, txnCount, cashSales, upiSales;
+    if (summary && (summary.total_sales > 0 || summary.txn_count > 0)) {
+        totalSales = summary.total_sales || 0;
+        txnCount = summary.txn_count || 0;
+        cashSales = summary.cash_sales || 0;
+        upiSales = summary.upi_sales || 0;
+    } else {
+        totalSales = sales.reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
+        txnCount = sales.length;
+        cashSales = sales.filter(r => (r.payment||'').toLowerCase().includes('cash')).reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
+        upiSales = totalSales - cashSales;
+    }
     const totalVendor = vendorInvoices.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
     const totalStockValue = stock.reduce((s, r) => s + (parseFloat(r.stock_value) || 0), 0);
     const discrepancies = reconciliation.filter(r => r.status !== 'PASS').length;
@@ -251,7 +262,7 @@ function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, s
     const closingUpi = summary ? summary.closing_upi : 0;
 
     document.getElementById('kpi-sales').textContent = formatCurrency(totalSales);
-    document.getElementById('kpi-sales-txn').textContent = `${txnCount} transactions`;
+    document.getElementById('kpi-sales-txn').textContent = `${txnCount} transactions (Cash ${formatCurrency(cashSales)} + UPI ${formatCurrency(upiSales)})`;
     document.getElementById('kpi-profit').textContent = formatCurrency(profit);
     document.getElementById('kpi-profit-margin').textContent = totalSales > 0 ? `${((profit/totalSales)*100).toFixed(1)}% margin` : '0% margin';
     document.getElementById('kpi-stock').textContent = formatCurrency(totalStockValue);
@@ -260,8 +271,10 @@ function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, s
     document.getElementById('kpi-vendor-count').textContent = `${vendorInvoices.length} invoices`;
     document.getElementById('kpi-discrepancies').textContent = discrepancies;
     document.getElementById('kpi-discrepancies-detail').textContent = discrepancies === 0 ? 'All checks passed' : `${discrepancies} issues found`;
-    document.getElementById('kpi-closing').textContent = formatCurrency(closingCash + closingUpi);
-    document.getElementById('kpi-closing-detail').textContent = `Cash: ${formatCurrency(closingCash)} + UPI: ${formatCurrency(closingUpi)}`;
+    document.getElementById('kpi-closing-cash').textContent = formatCurrency(closingCash);
+    document.getElementById('kpi-closing-cash-detail').textContent = `Opening: ${formatCurrency(summary ? summary.opening_cash : 0)}`;
+    document.getElementById('kpi-closing-upi').textContent = formatCurrency(closingUpi);
+    document.getElementById('kpi-closing-upi-detail').textContent = `Opening: ${formatCurrency(summary ? summary.opening_upi : 0)}`;
 
     renderOverviewCashbox(cashbox.slice(-5));
     renderOverviewRecon(reconciliation);
@@ -480,7 +493,7 @@ function renderTable(tableId, rows, cellMapper) {
         const cells = cellMapper(r);
         html += '<tr>';
         Object.values(cells).forEach(v => {
-            const isNum = typeof v === 'string' && (v.startsWith('₹') || v.startsWith('<span'));
+            const isNum = typeof v === 'string' && (v.startsWith('₹') || v.startsWith('<span class="') && (v.includes('₹') || v.includes('negative') || v.includes('positive')));
             html += `<td${isNum?' class="num"':''}>${v}</td>`;
         });
         html += '</tr>';

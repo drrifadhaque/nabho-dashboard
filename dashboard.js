@@ -7,7 +7,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 let sb;
 try { sb = window.supabase.createClient(SB_URL, SB_KEY); } catch(e) { console.error('Supabase init failed:', e); }
 
-let curDate = '2026-06-02';
+let curDate = new Date().toISOString().split('T')[0];
 let curStore = 'NabhoBazaarCoochBehar';
 let loading = false;
 
@@ -147,10 +147,22 @@ async function loadAll() {
 
 // ─── Renderers ───
 function renderOverview(cb, vi, sl, st, rc, sm) {
-    const ts = sl.reduce((s,r) => s+(parseFloat(r.total)||0), 0);
+    // Use daily_summaries for sales if available (from CashBox), fallback to Vyapar sales table
+    let totalSales, txnCount, cashSales, upiSales;
+    if (sm && (sm.total_sales > 0 || sm.txn_count > 0)) {
+        totalSales = sm.total_sales || 0;
+        txnCount = sm.txn_count || 0;
+        cashSales = sm.cash_sales || 0;
+        upiSales = sm.upi_sales || 0;
+    } else {
+        totalSales = sl.reduce((s,r) => s+(parseFloat(r.total)||0), 0);
+        txnCount = sl.length;
+        cashSales = sl.filter(r=>!r.payment||r.payment.toLowerCase().includes('cash')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+        upiSales = totalSales - cashSales;
+    }
     const p = sm?.total_profit||0;
-    document.getElementById('kpi-sales').textContent = fmt(ts);
-    document.getElementById('kpi-sales-txn').textContent = sl.length+' transactions';
+    document.getElementById('kpi-sales').textContent = fmt(totalSales);
+    document.getElementById('kpi-sales-txn').textContent = txnCount+' transactions (Cash '+fmt(cashSales)+' + UPI '+fmt(upiSales)+')';
     document.getElementById('kpi-profit').textContent = fmt(p);
     document.getElementById('kpi-profit-margin').textContent = ts>0?((p/ts*100).toFixed(1)+'% margin'):'0%';
     document.getElementById('kpi-stock').textContent = fmt(sm?.total_stock_value);
@@ -159,8 +171,10 @@ function renderOverview(cb, vi, sl, st, rc, sm) {
     document.getElementById('kpi-vendor-count').textContent = vi.length+' invoices';
     document.getElementById('kpi-discrepancies').textContent = rc.filter(r=>r.status!=='PASS').length;
     document.getElementById('kpi-discrepancies-detail').textContent = rc.filter(r=>r.status!=='PASS').length===0?'All checks passed':rc.filter(r=>r.status!=='PASS').length+' issues';
-    document.getElementById('kpi-closing').textContent = fmt((sm?.closing_cash||0)+(sm?.closing_upi||0));
-    document.getElementById('kpi-closing-detail').textContent = 'Cash: '+fmt(sm?.closing_cash)+' + UPI: '+fmt(sm?.closing_upi);
+    document.getElementById('kpi-closing-cash').textContent = fmt(sm?.closing_cash||0);
+    document.getElementById('kpi-closing-cash-detail').textContent = 'Opening: '+fmt(sm?.opening_cash||0);
+    document.getElementById('kpi-closing-upi').textContent = fmt(sm?.closing_upi||0);
+    document.getElementById('kpi-closing-upi-detail').textContent = 'Opening: '+fmt(sm?.opening_upi||0);
     
     // Overview cashbox
     const ovCb = document.getElementById('overviewCashbox');

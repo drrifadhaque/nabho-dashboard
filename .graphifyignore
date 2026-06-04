@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.next/
+vendor/
+*.min.js
+*.lock
+graphify-out/cache/
+sheet-data/

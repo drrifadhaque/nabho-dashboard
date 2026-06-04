@@ -230,6 +230,7 @@ body {
 .kpi-purple .kpi-value { color: var(--purple); }
 .kpi-red .kpi-value { color: var(--red); }
 .kpi-cyan .kpi-value { color: var(--cyan); }
+.kpi-teal .kpi-value { color: #0d9488; }
 
 /* ─── Charts ─── */
 .charts-grid {
@@ -325,19 +326,22 @@ body {
     border-radius: var(--radius);
     overflow: hidden;
 }
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 .data-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    table-layout: auto;
+    min-width: max-content;
 }
 .data-table thead {
     background: rgba(255,255,255,0.03);
     position: sticky; top: 0;
+    z-index: 2;
 }
 .data-table th {
-    padding: 12px 16px;
+    padding: 12px 12px;
     text-align: left;
     font-weight: 600;
     font-size: 11px;
@@ -349,17 +353,42 @@ body {
     user-select: none;
     white-space: nowrap;
     transition: color 0.15s;
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,10,0.98);
 }
 .data-table th:hover { color: var(--text-1); }
 .data-table th.sorted-asc::after { content: ' ↑'; color: var(--blue); }
 .data-table th.sorted-desc::after { content: ' ↓'; color: var(--blue); }
 
 .data-table td {
-    padding: 10px 16px;
+    padding: 10px 12px;
     border-bottom: 1px solid rgba(255,255,255,0.03);
     color: var(--text-2);
     white-space: nowrap;
 }
+
+/* CashBox column widths for proper display */
+#table-cashbox th[data-sort="time"] { min-width: 80px; }
+#table-cashbox th[data-sort="transaction_type"] { min-width: 140px; }
+#table-cashbox th[data-sort="ref"] { min-width: 80px; }
+#table-cashbox th[data-sort="description"] { min-width: 160px; }
+#table-cashbox th[data-sort="cash_in"],
+#table-cashbox th[data-sort="cash_out"],
+#table-cashbox th[data-sort="upi_in"],
+#table-cashbox th[data-sort="upi_out"],
+#table-cashbox th[data-sort="owner_paid"] { min-width: 100px; }
+#table-cashbox th[data-sort="running_cash"],
+#table-cashbox th[data-sort="running_upi"],
+#table-cashbox th[data-sort="total"] { min-width: 110px; }
+
+/* Vendor Invoice column widths */
+#table-vendor_invoices th[data-sort="vendor"] { min-width: 140px; }
+#table-vendor_invoices th[data-sort="invoice_no"] { min-width: 100px; }
+#table-vendor_invoices th[data-sort="amount"],
+#table-vendor_invoices th[data-sort="cash_paid"],
+#table-vendor_invoices th[data-sort="owner_paid"],
+#table-vendor_invoices th[data-sort="due"] { min-width: 100px; }
 .data-table tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-1); }
 .data-table tr:last-child td { border-bottom: none; }
 
@@ -379,10 +408,11 @@ body {
 .data-table .badge-low { background: var(--orange-bg); color: var(--orange); }
 .data-table .badge-negative { background: var(--red-bg); color: var(--red); }
 
-.table-container { max-height: 70vh; overflow-y: auto; }
+.table-container { max-height: 70vh; overflow: auto; }
 .table-container::-webkit-scrollbar { width: 6px; height: 6px; }
 .table-container::-webkit-scrollbar-track { background: transparent; }
 .table-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.table-container::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
 /* ─── Reconciliation Cards ─── */
 .recon-cards {
