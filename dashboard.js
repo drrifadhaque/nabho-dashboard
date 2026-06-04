@@ -10,15 +10,37 @@ try { sb = window.supabase.createClient(SB_URL, SB_KEY); } catch(e) { console.er
 let curDate = new Date().toISOString().split('T')[0];
 let curStore = 'NabhoBazaarCoochBehar';
 let loading = false;
+const IS_DARK = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 const fmt = v => { const n = parseFloat(v)||0; return n===0?'₹0':'₹'+n.toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2}); };
 
+// ─── Theme ───
+function initTheme() {
+    const saved = localStorage.getItem('nabho-theme');
+    const theme = saved || (IS_DARK ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeBtn(theme);
+}
+function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('nabho-theme', next);
+    updateThemeBtn(next);
+    // Re-render charts with new colors
+    if (window._lastSalesData) renderCharts(window._lastSalesData);
+}
+function updateThemeBtn(theme) {
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
 // ─── Init ───
 document.addEventListener('DOMContentLoaded', async () => {
+    initTheme();
     setupNav();
     if (!sb) { setStatus('Supabase init failed', true); hideLoad(); return; }
     
-    // Find the latest date with data
     try {
         const {data} = await sb.from('v_dates_with_data').select('date').order('date',{ascending:false}).limit(1);
         if (data && data.length) curDate = data[0].date;
@@ -26,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     document.getElementById('datePicker').value = curDate;
     await loadAll();
-    setTimeout(() => hideLoad(), 10000); // safety
+    setTimeout(() => hideLoad(), 10000);
 });
 
 function setupNav() {
@@ -38,7 +60,7 @@ function setupNav() {
             link.classList.add('active');
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
             document.getElementById('section-'+s).classList.add('active');
-            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'Sales',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation'};
+            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'Sales',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation',bank_reconciliation:'Bank Reconciliation'};
             document.getElementById('pageTitle').textContent = t[s]||s;
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('hamburger').classList.remove('active');
@@ -52,6 +74,7 @@ function setupNav() {
     document.getElementById('dateToday').addEventListener('click', () => { curDate=new Date().toISOString().split('T')[0]; dp.value=curDate; loadAll(); });
     document.getElementById('storeSelect').addEventListener('change', e => { curStore=e.target.value; loadAll(); });
     document.getElementById('hamburger').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('hamburger').classList.toggle('active'); });
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
     
     // Search
     document.querySelectorAll('.search-input').forEach(inp => {
@@ -151,6 +174,7 @@ async function loadAll() {
         renderAtt(attendance);
         renderTG(telegramInvoices);
         renderRecon(reconciliation);
+        renderMiniSummaries(cashbox, vendorInvoices, sales, stock, attendance, telegramInvoices, reconciliation, summary);
         
         setStatus('Connected to Supabase', false);
     } catch(e) {
@@ -163,7 +187,6 @@ async function loadAll() {
 
 // ─── Renderers ───
 function renderOverview(cb, vi, sl, st, rc, sm) {
-    // Use daily_summaries for sales if available (from CashBox), fallback to Vyapar sales table
     let totalSales, txnCount, cashSales, upiSales;
     if (sm && (sm.total_sales > 0 || sm.txn_count > 0)) {
         totalSales = sm.total_sales || 0;
@@ -193,23 +216,64 @@ function renderOverview(cb, vi, sl, st, rc, sm) {
     document.getElementById('kpi-closing-upi').textContent = fmt(sm?.closing_upi||0);
     document.getElementById('kpi-closing-upi-detail').textContent = 'Opening: '+fmt(sm?.opening_upi||0);
     
-    // Overview cashbox
-    const ovCb = document.getElementById('overviewCashbox');
-    if (cb.length) {
-        ovCb.innerHTML = '<table class="data-table"><thead><tr><th>Time</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead><tbody>'+cb.slice(-5).map(r => {
-            const a = (parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0)-(parseFloat(r.cash_out)||0)-(parseFloat(r.upi_out)||0);
-            return '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.description||'')+'</td><td class="num '+(a>=0?'positive':'negative')+'">'+fmt(a)+'</td></tr>';
-        }).join('')+'</tbody></table>';
-    } else { ovCb.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No cashbox data</p></div>'; }
-    
-    // Overview recon
-    const ovRc = document.getElementById('overviewRecon');
-    if (rc.length) {
-        ovRc.innerHTML = rc.map(r => '<div class="recon-card '+(r.status==='PASS'?'pass':'fail')+'" style="margin-bottom:8px;padding:12px;"><span class="recon-title">'+(r.status==='PASS'?'✅':'❌')+' '+r.check_type+'</span><span class="recon-status" style="float:right;color:'+(r.status==='PASS'?'var(--green)':'var(--red)')+'">'+r.status+'</span>'+(r.details?'<div class="recon-detail">'+r.details+'</div>':'')+'</div>').join('');
-    } else { ovRc.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No reconciliation data</p></div>'; }
-    
-    // Charts
     renderCharts(sl);
+}
+
+// ─── Mini Summaries ───
+function renderMiniSummaries(cb, vi, sl, st, att, tg, rc, sm) {
+    // CashBox
+    const el = (id, html) => { const e = document.getElementById(id); if(e) e.innerHTML = html; };
+    const stat = (l, v, cls) => '<div class="mini-stat"><span class="label">'+l+'</span><span class="value'+(cls?' '+cls:'')+'">'+v+'</span></div>';
+    
+    el('miniCashboxBody', 
+        stat('Cash In', fmt(cb.reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0)), 'positive') +
+        stat('Cash Out', fmt(cb.reduce((s,r)=>s+(parseFloat(r.cash_out)||0),0)), 'negative') +
+        stat('UPI In', fmt(cb.reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0)), 'positive') +
+        stat('Closing', fmt(sm?.closing_cash||0)) +
+        stat('Transactions', cb.length));
+    
+    el('miniVendorBody',
+        stat('Total Bills', fmt(vi.reduce((s,r)=>s+(parseFloat(r.amount)||0),0))) +
+        stat('Cash Paid', fmt(vi.reduce((s,r)=>s+(parseFloat(r.cash_paid)||0),0))) +
+        stat('Owner Paid', fmt(vi.reduce((s,r)=>s+(parseFloat(r.owner_paid)||0),0))) +
+        stat('Due', fmt(vi.reduce((s,r)=>s+(parseFloat(r.due)||0),0)), vi.reduce((s,r)=>s+(parseFloat(r.due)||0),0)>0?'negative':'') +
+        stat('Invoices', vi.length));
+    
+    el('miniSalesBody',
+        stat('Total Sales', fmt(sl.reduce((s,r)=>s+(parseFloat(r.total)||0),0))) +
+        stat('PoS Sales', sl.filter(r=>r.type&&r.type.includes('Sale')).length) +
+        stat('Purchases', sl.filter(r=>r.type&&r.type.includes('Purchase')).length) +
+        stat('Expenses', sl.filter(r=>r.type&&r.type.includes('Expense')).length) +
+        stat('Transactions', sl.length));
+    
+    const totalVal = st.reduce((s,r)=>s+(parseFloat(r.stock_value)||0),0);
+    const low = st.filter(r=>(parseFloat(r.qty)||0)<5&&(parseFloat(r.qty)||0)>=0).length;
+    const neg = st.filter(r=>(parseFloat(r.qty)||0)<0).length;
+    el('miniStockBody',
+        stat('Total Value', fmt(totalVal)) +
+        stat('Items', st.length) +
+        stat('Low Stock', low, low>0?'negative':'') +
+        stat('Negative', neg, neg>0?'negative':'') +
+        stat('In Stock', st.filter(r=>(parseFloat(r.qty)||0)>=5).length));
+    
+    el('miniAttendanceBody',
+        stat('Employees', att.length) +
+        stat('Total Hours', att.reduce((s,r)=>s+(parseFloat(r.work_hours)||0),0).toFixed(1)+'h') +
+        stat('On Leave', att.filter(r=>r.leave&&r.leave!=='-').length));
+    
+    el('miniTelegramBody',
+        stat('Total', fmt(tg.reduce((s,r)=>s+(parseFloat(r.amount)||0),0))) +
+        stat('Invoices', tg.length) +
+        stat('Cash', tg.filter(r=>r.payment_method&&r.payment_method.toLowerCase().includes('cash')).length) +
+        stat('UPI', tg.filter(r=>r.payment_method&&r.payment_method.toLowerCase().includes('upi')).length));
+    
+    const passCount = rc.filter(r=>r.status==='PASS').length;
+    const failCount = rc.filter(r=>r.status!=='PASS').length;
+    el('miniReconBody',
+        stat('Checks', rc.length) +
+        stat('Passed', passCount, 'positive') +
+        stat('Failed', failCount, failCount>0?'negative':'') +
+        stat('Status', failCount===0?'✅ All Clear':'⚠️ Issues'));
 }
 
 function renderCashbox(rows) {
@@ -263,7 +327,13 @@ function renderRecon(rows) {
 }
 
 async function renderCharts(sales) {
-    // Destroy existing charts first
+    window._lastSalesData = sales;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#a1a1a1' : '#7d6f8a';
+    const gridColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(74,63,85,0.06)';
+    const blueColor = isDark ? '#818cf8' : '#6366f1';
+    const greenColor = isDark ? '#34d399' : '#059669';
+    
     const existingTrend = Chart.getChart(document.getElementById('chartSalesTrend'));
     if (existingTrend) existingTrend.destroy();
     const existingMix = Chart.getChart(document.getElementById('chartPaymentMix'));
@@ -277,36 +347,36 @@ async function renderCharts(sales) {
             if (canvas) {
                 canvas.style.height = '250px';
                 canvas.style.maxHeight = '250px';
-                const ctx = canvas.getContext('2d');
-                new Chart(ctx, { type: 'line', data: {
+                new Chart(canvas.getContext('2d'), { type: 'line', data: {
                     labels: data.map(r => { const d=new Date(r.date); return d.getDate()+'/'+(d.getMonth()+1); }),
                     datasets: [
-                        {label:'Sales',data:data.map(r=>parseFloat(r.total_sales)||0),borderColor:'#0070f3',backgroundColor:'rgba(0,112,243,0.1)',fill:true,tension:0.4,borderWidth:2,pointRadius:3},
-                        {label:'Profit',data:data.map(r=>parseFloat(r.total_profit)||0),borderColor:'#00d68f',backgroundColor:'rgba(0,214,143,0.1)',fill:true,tension:0.4,borderWidth:2,pointRadius:3}
+                        {label:'Sales',data:data.map(r=>parseFloat(r.total_sales)||0),borderColor:blueColor,backgroundColor:blueColor+'1a',fill:true,tension:0.4,borderWidth:2,pointRadius:3},
+                        {label:'Profit',data:data.map(r=>parseFloat(r.total_profit)||0),borderColor:greenColor,backgroundColor:greenColor+'1a',fill:true,tension:0.4,borderWidth:2,pointRadius:3}
                     ]
-                }, options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#a1a1a1',font:{size:11}}}}, scales:{x:{ticks:{color:'#666',font:{size:10},maxRotation:45},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#666',font:{size:10},callback:v=>'₹'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}} } });
+                }, options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:textColor,font:{size:11}}}}, scales:{x:{ticks:{color:textColor,font:{size:10},maxRotation:45},grid:{color:gridColor}},y:{ticks:{color:textColor,font:{size:10},callback:v=>'₹'+v.toLocaleString()},grid:{color:gridColor}}} } });
             }
         }
     } catch(e) { console.warn('Sales trend chart error:', e); }
     
-    // Payment mix
+    // Payment mix — Cash and UPI only
     try {
         const cash = sales.filter(r=>!r.payment||r.payment.toLowerCase().includes('cash')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
         const upi = sales.filter(r=>r.payment&&r.payment.toLowerCase().includes('upi')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
-        const other = sales.reduce((s,r)=>s+(parseFloat(r.total)||0),0)-cash-upi;
         const canvas = document.getElementById('chartPaymentMix');
         if (canvas) {
             canvas.style.height = '250px';
             canvas.style.maxHeight = '250px';
-            const ctx = canvas.getContext('2d');
-            new Chart(ctx, { type:'doughnut', data:{labels:['Cash','UPI','Other'],datasets:[{data:[cash,upi,Math.max(0,other)],backgroundColor:['#0070f3','#00d68f','#7928ca'],borderColor:'rgba(17,17,17,0.8)',borderWidth:3}]}, options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#a1a1a1',padding:16,font:{size:11}}}}} });
+            new Chart(canvas.getContext('2d'), { type:'doughnut', data:{
+                labels:['Cash','UPI'],
+                datasets:[{data:[cash,upi],backgroundColor:[blueColor,greenColor],borderWidth:0}]
+            }, options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:textColor,padding:16,font:{size:11}}}}} });
         }
     } catch(e) { console.warn('Payment mix chart error:', e); }
 }
 
 // ─── Helpers ───
-function emptyRow(table) { const cols = document.querySelectorAll('#table-'+table+' th').length; return '<tr><td colspan="'+cols+'" style="text-align:center;padding:40px;color:#666">No data for this date</td></tr>'; }
+function emptyRow(table) { const cols = document.querySelectorAll('#table-'+table+' th').length; return '<tr><td colspan="'+cols+'" style="text-align:center;padding:40px;color:var(--text-3)">No data for this date</td></tr>'; }
 function summaryChips(id, chips) { const el=document.getElementById(id); if(el) el.innerHTML = chips.map(c=>'<div class="summary-chip"><span class="chip-label">'+c.l+'</span><span class="chip-value">'+c.v+'</span></div>').join(''); }
 function setStatus(msg, err) { document.getElementById('connectionStatus').textContent = msg; const dot = document.querySelector('.status-dot'); if(err){dot.classList.add('error');dot.classList.remove('online');}else{dot.classList.add('online');dot.classList.remove('error');} }
-function showLoad() { document.getElementById('loading').style.display = 'flex'; document.getElementById('loading').style.opacity = '1'; document.getElementById('loading').style.pointerEvents = 'auto'; }
-function hideLoad() { document.getElementById('loading').style.display = 'none'; document.getElementById('loading').style.opacity = '0'; document.getElementById('loading').style.pointerEvents = 'none'; }
+function showLoad() { const el=document.getElementById('loading'); el.style.display='flex'; el.style.opacity='1'; el.style.pointerEvents='auto'; }
+function hideLoad() { const el=document.getElementById('loading'); el.style.display='none'; el.style.opacity='0'; el.style.pointerEvents='none'; }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,11 +9,10 @@
     <title>NabhoDashboard — SM Nabho Group</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- ─── Mesh Gradient Background ─── -->
     <div class="mesh-bg"></div>
 
     <!-- ─── Sidebar ─── -->
@@ -25,7 +24,6 @@
                 <span class="brand-sub">SM Nabho Group</span>
             </div>
         </div>
-
         <nav class="sidebar-nav" id="sidebarNav">
             <a href="#" class="nav-link active" data-section="overview">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -59,22 +57,23 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
                 <span>Reconciliation</span>
             </a>
+            <a href="#" class="nav-link" data-section="bank_reconciliation">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 4v16M2 8h20M6 12h4M14 12h4M6 16h12"/></svg>
+                <span>Bank Reconciliation</span>
+            </a>
         </nav>
-
         <div class="sidebar-footer">
             <div class="status-dot"></div>
             <span id="connectionStatus">Connecting...</span>
         </div>
     </aside>
 
-    <!-- ─── Mobile Hamburger ─── -->
     <button class="hamburger" id="hamburger" aria-label="Toggle sidebar">
         <span></span><span></span><span></span>
     </button>
 
     <!-- ─── Main Content ─── -->
     <main class="main-content">
-        <!-- ─── Top Bar ─── -->
         <header class="topbar">
             <div class="topbar-left">
                 <h1 class="page-title" id="pageTitle">Overview</h1>
@@ -87,18 +86,18 @@
                     <button class="date-nav" id="dateNext" title="Next day">›</button>
                     <button class="date-today" id="dateToday">Today</button>
                 </div>
-                <div class="store-selector">
-                    <select id="storeSelect" class="store-select">
-                        <option value="all">All Stores</option>
-                        <option value="NabhoBazaarCoochBehar" selected>Cooch Behar</option>
-                        <option value="NabhoBazaarOkrabari">Okrabari</option>
-                    </select>
-                </div>
+                <select id="storeSelect" class="store-select">
+                    <option value="all">All Stores</option>
+                    <option value="NabhoBazaarCoochBehar" selected>Cooch Behar</option>
+                    <option value="NabhoBazaarOkrabari">Okrabari</option>
+                </select>
+                <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
             </div>
         </header>
 
-        <!-- ─── Section: Overview ─── -->
+        <!-- ═══ OVERVIEW ═══ -->
         <section class="section active" id="section-overview">
+            <!-- KPI Grid -->
             <div class="kpi-grid">
                 <div class="kpi-card kpi-blue">
                     <div class="kpi-icon">💰</div>
@@ -132,14 +131,6 @@
                         <span class="kpi-sub" id="kpi-vendor-count">0 invoices</span>
                     </div>
                 </div>
-                <div class="kpi-card kpi-red">
-                    <div class="kpi-icon">⚠️</div>
-                    <div class="kpi-body">
-                        <span class="kpi-label">Discrepancies</span>
-                        <span class="kpi-value" id="kpi-discrepancies">0</span>
-                        <span class="kpi-sub" id="kpi-discrepancies-detail">All checks passed</span>
-                    </div>
-                </div>
                 <div class="kpi-card kpi-cyan">
                     <div class="kpi-icon">💵</div>
                     <div class="kpi-body">
@@ -156,8 +147,17 @@
                         <span class="kpi-sub" id="kpi-closing-upi-detail">IOB + Axis Bank</span>
                     </div>
                 </div>
+                <div class="kpi-card kpi-red">
+                    <div class="kpi-icon">⚠️</div>
+                    <div class="kpi-body">
+                        <span class="kpi-label">Discrepancies</span>
+                        <span class="kpi-value" id="kpi-discrepancies">0</span>
+                        <span class="kpi-sub" id="kpi-discrepancies-detail">All checks passed</span>
+                    </div>
+                </div>
             </div>
 
+            <!-- Charts -->
             <div class="charts-grid">
                 <div class="chart-card">
                     <h3>Sales Trend</h3>
@@ -173,19 +173,96 @@
                 </div>
             </div>
 
-            <div class="overview-grid">
-                <div class="overview-card">
-                    <h3>📋 Recent CashBox Activity</h3>
-                    <div class="table-wrap" id="overviewCashbox"></div>
+            <!-- Mini Summaries for ALL tabs -->
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--text-1);">Daily Summary</h3>
+            <div class="mini-grid" id="miniGrid">
+                <div class="mini-card" id="miniCashbox">
+                    <h4><span>💰</span> CashBox</h4>
+                    <div id="miniCashboxBody"></div>
                 </div>
-                <div class="overview-card">
-                    <h3>🔍 Reconciliation Status</h3>
-                    <div id="overviewRecon"></div>
+                <div class="mini-card" id="miniVendor">
+                    <h4><span>🧾</span> Vendor Invoices</h4>
+                    <div id="miniVendorBody"></div>
+                </div>
+                <div class="mini-card" id="miniSales">
+                    <h4><span>📊</span> Sales</h4>
+                    <div id="miniSalesBody"></div>
+                </div>
+                <div class="mini-card" id="miniStock">
+                    <h4><span>📦</span> Stock</h4>
+                    <div id="miniStockBody"></div>
+                </div>
+                <div class="mini-card" id="miniAttendance">
+                    <h4><span>👥</span> Attendance</h4>
+                    <div id="miniAttendanceBody"></div>
+                </div>
+                <div class="mini-card" id="miniTelegram">
+                    <h4><span>📱</span> Telegram Invoices</h4>
+                    <div id="miniTelegramBody"></div>
+                </div>
+                <div class="mini-card" id="miniRecon">
+                    <h4><span>🔍</span> Reconciliation</h4>
+                    <div id="miniReconBody"></div>
+                </div>
+            </div>
+
+            <!-- Status Box -->
+            <div class="status-box">
+                <h3>🏥 System Status</h3>
+                <div class="status-grid" id="statusGrid">
+                    <div class="status-item">
+                        <div class="icon">📊</div>
+                        <div class="info">
+                            <div class="title">NabhoAudit</div>
+                            <div class="detail" id="statusAudit">Last run: checking...</div>
+                        </div>
+                        <div class="badge ok" id="statusAuditBadge">OK</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="icon">🏦</div>
+                        <div class="info">
+                            <div class="title">Bank Reconciliation</div>
+                            <div class="detail" id="statusBank">Weekly cycle</div>
+                        </div>
+                        <div class="badge ok" id="statusBankBadge">OK</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="icon">☁️</div>
+                        <div class="info">
+                            <div class="title">Supabase</div>
+                            <div class="detail" id="statusSupabase">Connected</div>
+                        </div>
+                        <div class="badge ok" id="statusSupabaseBadge">OK</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="icon">📁</div>
+                        <div class="info">
+                            <div class="title">Google Drive</div>
+                            <div class="detail" id="statusDrive">Vyapar Exports synced</div>
+                        </div>
+                        <div class="badge ok" id="statusDriveBadge">OK</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="icon">📱</div>
+                        <div class="info">
+                            <div class="title">Telegram Bot</div>
+                            <div class="detail" id="statusTelegram">@sageclawaibot active</div>
+                        </div>
+                        <div class="badge ok" id="statusTelegramBadge">OK</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="icon">🤖</div>
+                        <div class="info">
+                            <div class="title">Sage AI</div>
+                            <div class="detail" id="statusSage">MiMo V2.5 Pro</div>
+                        </div>
+                        <div class="badge ok" id="statusSageBadge">OK</div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ─── Section: CashBox ─── -->
+        <!-- ═══ CASHBOX ═══ -->
         <section class="section" id="section-cashbox">
             <div class="section-header">
                 <h2>CashBox</h2>
@@ -197,29 +274,21 @@
             <div class="table-container">
                 <div class="table-wrap">
                 <table class="data-table" id="table-cashbox">
-                    <thead>
-                        <tr>
-                            <th data-sort="time">Time</th>
-                            <th data-sort="transaction_type">Type</th>
-                            <th data-sort="ref">Reference</th>
-                            <th data-sort="description">Description</th>
-                            <th data-sort="cash_in">Cash In</th>
-                            <th data-sort="cash_out">Cash Out</th>
-                            <th data-sort="upi_in">UPI In</th>
-                            <th data-sort="upi_out">UPI Out</th>
-                            <th data-sort="owner_paid">Owner Paid</th>
-                            <th data-sort="running_cash">Cash Bal</th>
-                            <th data-sort="running_upi">UPI Bal</th>
-                            <th data-sort="total">Total</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th data-sort="time">Time</th><th data-sort="transaction_type">Type</th>
+                        <th data-sort="ref">Reference</th><th data-sort="description">Description</th>
+                        <th data-sort="cash_in">Cash In</th><th data-sort="cash_out">Cash Out</th>
+                        <th data-sort="upi_in">UPI In</th><th data-sort="upi_out">UPI Out</th>
+                        <th data-sort="owner_paid">Owner Paid</th><th data-sort="running_cash">Cash Bal</th>
+                        <th data-sort="running_upi">UPI Bal</th><th data-sort="total">Total</th>
+                    </tr></thead>
                     <tbody></tbody>
                 </table>
                 </div>
             </div>
         </section>
 
-        <!-- ─── Section: Vendor Invoices ─── -->
+        <!-- ═══ VENDOR INVOICES ═══ -->
         <section class="section" id="section-vendor_invoices">
             <div class="section-header">
                 <h2>Vendor Invoices</h2>
@@ -230,26 +299,19 @@
             <div class="summary-bar" id="vendorInvoicesSummary"></div>
             <div class="table-container">
                 <table class="data-table" id="table-vendor_invoices">
-                    <thead>
-                        <tr>
-                            <th data-sort="vendor">Vendor</th>
-                            <th data-sort="invoice_no">Invoice #</th>
-                            <th data-sort="bill_date">Bill Date</th>
-                            <th data-sort="purchase_date">Purchase Date</th>
-                            <th data-sort="clear_date">Clear Date</th>
-                            <th data-sort="amount">Amount</th>
-                            <th data-sort="cash_paid">Cash Paid</th>
-                            <th data-sort="owner_paid">Owner Paid</th>
-                            <th data-sort="due">Due</th>
-                            <th data-sort="payment_method">Payment</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th data-sort="vendor">Vendor</th><th data-sort="invoice_no">Invoice #</th>
+                        <th data-sort="bill_date">Bill Date</th><th data-sort="purchase_date">Purchase Date</th>
+                        <th data-sort="clear_date">Clear Date</th><th data-sort="amount">Amount</th>
+                        <th data-sort="cash_paid">Cash Paid</th><th data-sort="owner_paid">Owner Paid</th>
+                        <th data-sort="due">Due</th><th data-sort="payment_method">Payment</th>
+                    </tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- ─── Section: Sales ─── -->
+        <!-- ═══ SALES ═══ -->
         <section class="section" id="section-sales">
             <div class="section-header">
                 <h2>Sales</h2>
@@ -260,24 +322,18 @@
             <div class="summary-bar" id="salesSummary"></div>
             <div class="table-container">
                 <table class="data-table" id="table-sales">
-                    <thead>
-                        <tr>
-                            <th data-sort="ref">Ref #</th>
-                            <th data-sort="party">Party</th>
-                            <th data-sort="type">Type</th>
-                            <th data-sort="total">Total</th>
-                            <th data-sort="payment">Payment</th>
-                            <th data-sort="paid">Paid</th>
-                            <th data-sort="received">Received</th>
-                            <th data-sort="balance">Balance</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th data-sort="ref">Ref #</th><th data-sort="party">Party</th>
+                        <th data-sort="type">Type</th><th data-sort="total">Total</th>
+                        <th data-sort="payment">Payment</th><th data-sort="paid">Paid</th>
+                        <th data-sort="received">Received</th><th data-sort="balance">Balance</th>
+                    </tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- ─── Section: Stock ─── -->
+        <!-- ═══ STOCK ═══ -->
         <section class="section" id="section-stock">
             <div class="section-header">
                 <h2>Stock / Inventory</h2>
@@ -291,48 +347,35 @@
             <div class="summary-bar" id="stockSummary"></div>
             <div class="table-container">
                 <table class="data-table" id="table-stock">
-                    <thead>
-                        <tr>
-                            <th data-sort="item_name">Item</th>
-                            <th data-sort="barcode">Barcode</th>
-                            <th data-sort="hsn">HSN</th>
-                            <th data-sort="mrp">MRP</th>
-                            <th data-sort="sale_price">Sale Price</th>
-                            <th data-sort="purchase_price">Purchase Price</th>
-                            <th data-sort="qty">Qty</th>
-                            <th data-sort="stock_value">Value</th>
-                            <th data-sort="status">Status</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th data-sort="item_name">Item</th><th data-sort="barcode">Barcode</th>
+                        <th data-sort="hsn">HSN</th><th data-sort="mrp">MRP</th>
+                        <th data-sort="sale_price">Sale Price</th><th data-sort="purchase_price">Purchase Price</th>
+                        <th data-sort="qty">Qty</th><th data-sort="stock_value">Value</th>
+                        <th data-sort="status">Status</th>
+                    </tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- ─── Section: Attendance ─── -->
+        <!-- ═══ ATTENDANCE ═══ -->
         <section class="section" id="section-attendance">
-            <div class="section-header">
-                <h2>Attendance</h2>
-            </div>
+            <div class="section-header"><h2>Attendance</h2></div>
             <div class="summary-bar" id="attendanceSummary"></div>
             <div class="table-container">
                 <table class="data-table" id="table-attendance">
-                    <thead>
-                        <tr>
-                            <th data-sort="employee">Employee</th>
-                            <th data-sort="check_in">Check In</th>
-                            <th data-sort="check_out">Check Out</th>
-                            <th data-sort="work_hours">Work Hours</th>
-                            <th data-sort="break_hours">Break Hours</th>
-                            <th data-sort="leave">Leave</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th data-sort="employee">Employee</th><th data-sort="check_in">Check In</th>
+                        <th data-sort="check_out">Check Out</th><th data-sort="work_hours">Work Hours</th>
+                        <th data-sort="break_hours">Break Hours</th><th data-sort="leave">Leave</th>
+                    </tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- ─── Section: Telegram Invoices ─── -->
+        <!-- ═══ TELEGRAM INVOICES ═══ -->
         <section class="section" id="section-telegram_invoices">
             <div class="section-header">
                 <h2>Telegram Invoices</h2>
@@ -343,46 +386,52 @@
             <div class="summary-bar" id="telegramInvoicesSummary"></div>
             <div class="table-container">
                 <table class="data-table" id="table-telegram_invoices">
-                    <thead>
-                        <tr>
-                            <th data-sort="sender">Sender</th>
-                            <th data-sort="invoice_no">Invoice #</th>
-                            <th data-sort="amount">Amount</th>
-                            <th data-sort="payment_method">Payment</th>
-                            <th data-sort="bill_date">Bill Date</th>
-                            <th data-sort="clear_date">Clear Date</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th data-sort="sender">Sender</th><th data-sort="invoice_no">Invoice #</th>
+                        <th data-sort="amount">Amount</th><th data-sort="payment_method">Payment</th>
+                        <th data-sort="bill_date">Bill Date</th><th data-sort="clear_date">Clear Date</th>
+                    </tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- ─── Section: Reconciliation ─── -->
+        <!-- ═══ RECONCILIATION ═══ -->
         <section class="section" id="section-reconciliation">
-            <div class="section-header">
-                <h2>Reconciliation</h2>
-            </div>
+            <div class="section-header"><h2>Reconciliation</h2></div>
             <div class="recon-cards" id="reconCards"></div>
             <div class="table-container">
                 <table class="data-table" id="table-reconciliation">
-                    <thead>
-                        <tr>
-                            <th data-sort="check_type">Check Type</th>
-                            <th data-sort="status">Status</th>
-                            <th data-sort="expected">Expected</th>
-                            <th data-sort="actual">Actual</th>
-                            <th data-sort="discrepancy">Discrepancy</th>
-                            <th data-sort="details">Details</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th data-sort="check_type">Check Type</th><th data-sort="status">Status</th>
+                        <th data-sort="expected">Expected</th><th data-sort="actual">Actual</th>
+                        <th data-sort="discrepancy">Discrepancy</th><th data-sort="details">Details</th>
+                    </tr></thead>
                     <tbody></tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- ═══ BANK RECONCILIATION ═══ -->
+        <section class="section" id="section-bank_reconciliation">
+            <div class="section-header">
+                <h2>Bank Reconciliation</h2>
+                <div class="section-actions">
+                    <span style="font-size:13px;color:var(--text-3);">Weekly cycle — Upload bank statement every Monday</span>
+                </div>
+            </div>
+            <div class="summary-bar" id="bankReconSummary"></div>
+            <div class="recon-cards" id="bankReconCards">
+                <div class="overview-card" style="text-align:center;padding:40px;">
+                    <div style="font-size:48px;margin-bottom:16px;">🏦</div>
+                    <h3 style="font-size:16px;margin-bottom:8px;">Bank Reconciliation</h3>
+                    <p style="color:var(--text-3);font-size:13px;">Upload your weekly bank statement here.<br>This section will show reconciliation between CashBox closing balances and bank deposits.</p>
+                    <p style="color:var(--text-3);font-size:12px;margin-top:16px;">Coming soon — automatic bank statement sync from Google Drive.</p>
+                </div>
             </div>
         </section>
     </main>
 
-    <!-- ─── Loading Overlay ─── -->
     <div class="loading-overlay" id="loading">
         <div class="loading-spinner"></div>
         <p>Loading data...</p>
