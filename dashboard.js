@@ -129,15 +129,14 @@ async function loadAll() {
         };
         
         const [cb, vi, sl, st, att, tg, rc, sm] = await Promise.allSettled([
-            q('cashbox'), q('vendor_invoices'), q('cashbox'), qStock(),
+            q('cashbox'), q('vendor_invoices'), q('sales'), qStock(),
             q('attendance'), q('telegram_invoices'), q('reconciliation'),
             sb.from('daily_summaries').select('*').eq('date', curDate).limit(1).then(r => r.data?.[0]||null)
         ]);
         
         const cashbox = cb.status==='fulfilled'?cb.value:[];
         const vendorInvoices = vi.status==='fulfilled'?vi.value:[];
-        const salesData = sl.status==='fulfilled'?sl.value:[];
-        const sales = salesData.filter(r => r.transaction_type && (r.transaction_type.includes('Sale')));
+        const sales = sl.status==='fulfilled'?sl.value:[];
         const stock = st.status==='fulfilled'?st.value:[];
         const attendance = att.status==='fulfilled'?att.value:[];
         const telegramInvoices = tg.status==='fulfilled'?tg.value:[];
@@ -174,8 +173,8 @@ function renderOverview(cb, vi, sl, st, rc, sm) {
     } else {
         totalSales = sl.reduce((s,r) => s+(parseFloat(r.total)||0), 0);
         txnCount = sl.length;
-        cashSales = sl.filter(r=>r.transaction_type==='Sale-Cash').reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0);
-        upiSales = sl.filter(r=>r.transaction_type==='Sale-UPI').reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0);
+        cashSales = sl.filter(r=>!r.payment||r.payment.toLowerCase().includes('cash')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+        upiSales = sl.filter(r=>r.payment&&r.payment.toLowerCase().includes('upi')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
         totalSales = cashSales + upiSales;
     }
     const p = sm?.total_profit||0;
@@ -230,14 +229,8 @@ function renderVI(rows) {
 function renderSales(rows) {
     const tb = document.querySelector('#table-sales tbody');
     if (!rows.length) { tb.innerHTML = emptyRow('sales'); return; }
-    const totalCash = rows.filter(r=>r.transaction_type==='Sale-Cash').reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0);
-    const totalUpi = rows.filter(r=>r.transaction_type==='Sale-UPI').reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0);
-    tb.innerHTML = rows.map(r => {
-        const amount = (parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0);
-        const method = r.transaction_type==='Sale-Cash'?'Cash':'UPI';
-        return '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.description||'')+'</td><td class="num">'+fmt(amount)+'</td><td>'+method+'</td></tr>';
-    }).join('');
-    summaryChips('salesSummary', [{l:'Total Sales',v:fmt(totalCash+totalUpi)},{l:'Cash',v:fmt(totalCash)},{l:'UPI',v:fmt(totalUpi)},{l:'Txns',v:rows.length}]);
+    tb.innerHTML = rows.map(r => '<tr><td>'+(r.ref||'')+'</td><td>'+(r.party||'')+'</td><td>'+(r.type||'')+'</td><td class="num">'+fmt(r.total)+'</td><td>'+(r.payment||'')+'</td><td class="num">'+fmt(r.paid)+'</td><td class="num">'+fmt(r.received)+'</td><td class="num '+(parseFloat(r.balance)>0?'negative':'')+'">'+fmt(r.balance)+'</td></tr>').join('');
+    summaryChips('salesSummary', [{l:'Total',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},{l:'Received',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.received)||0),0))},{l:'Txns',v:rows.length}]);
 }
 
 function renderStock(rows) {
@@ -298,8 +291,8 @@ async function renderCharts(sales) {
     
     // Payment mix
     try {
-        const cash = sales.filter(r=>r.transaction_type==='Sale-Cash').reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0);
-        const upi = sales.filter(r=>r.transaction_type==='Sale-UPI').reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0);
+        const cash = sales.filter(r=>!r.payment||r.payment.toLowerCase().includes('cash')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+        const upi = sales.filter(r=>r.payment&&r.payment.toLowerCase().includes('upi')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
         const other = sales.reduce((s,r)=>s+(parseFloat(r.total)||0),0)-cash-upi;
         const canvas = document.getElementById('chartPaymentMix');
         if (canvas) {
