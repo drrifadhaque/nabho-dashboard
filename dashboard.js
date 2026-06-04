@@ -111,9 +111,14 @@ async function loadAll() {
             if (sf) query = query.eq('store', sf);
             return query.then(({data,error}) => { if(error) console.warn(table,error); return data||[]; });
         };
+        const qStock = () => {
+            let query = sb.from('stock').select('*').limit(5000);
+            if (sf) query = query.eq('store', sf);
+            return query.then(({data,error}) => { if(error) console.warn('stock',error); return data||[]; });
+        };
         
         const [cb, vi, sl, st, att, tg, rc, sm] = await Promise.allSettled([
-            q('cashbox'), q('vendor_invoices'), q('sales'), q('stock'),
+            q('cashbox'), q('vendor_invoices'), q('sales'), qStock(),
             q('attendance'), q('telegram_invoices'), q('reconciliation'),
             sb.from('daily_summaries').select('*').eq('date', curDate).limit(1).then(r => r.data?.[0]||null)
         ]);
