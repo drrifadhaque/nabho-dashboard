@@ -324,6 +324,9 @@ function renderAllTxn(vyapar, cashbox) {
     const vt = document.querySelector('#table-sales tbody');
     if (!vyapar.length) { vt.innerHTML = emptyRow('sales'); } else {
         vt.innerHTML = vyapar.map(r => '<tr><td>'+(r.ref||'')+'</td><td>'+(r.party||'')+'</td><td>'+(r.type||'')+'</td><td class="num">'+fmt(r.total)+'</td><td>'+(r.payment||'')+'</td></tr>').join('');
+        // Total row
+        const vTotal = vyapar.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+        vt.innerHTML += '<tr style="font-weight:700;background:var(--bg-surface)"><td colspan="3">TOTAL</td><td class="num">'+fmt(vTotal)+'</td><td>'+vyapar.length+' txns</td></tr>';
     }
     // CashBox table (right side)
     const ct = document.querySelector('#table-cb-txn tbody');
@@ -332,6 +335,9 @@ function renderAllTxn(vyapar, cashbox) {
             const amt = (parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0)-(parseFloat(r.cash_out)||0)-(parseFloat(r.upi_out)||0);
             return '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.description||'')+'</td><td class="num">'+fmt(amt)+'</td></tr>';
         }).join('');
+        // Total row
+        const cbTotal = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0)-(parseFloat(r.cash_out)||0)-(parseFloat(r.upi_out)||0),0);
+        ct.innerHTML += '<tr style="font-weight:700;background:var(--bg-surface)"><td colspan="3">TOTAL</td><td class="num">'+fmt(cbTotal)+'</td></tr>';
     }
     // Summary chips
     const poSale = vyapar.filter(r=>r.type&&r.type.includes('Sale'));
