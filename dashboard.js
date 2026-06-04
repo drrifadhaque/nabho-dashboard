@@ -297,7 +297,17 @@ function renderVI(rows) {
     const tb = document.querySelector('#table-vendor_invoices tbody');
     if (!rows.length) { tb.innerHTML = emptyRow('vendor_invoices'); return; }
     tb.innerHTML = rows.map(r => '<tr><td>'+(r.vendor||'')+'</td><td>'+(r.invoice_no||'')+'</td><td>'+(r.bill_date||'')+'</td><td>'+(r.purchase_date||'')+'</td><td>'+(r.clear_date||'')+'</td><td class="num">'+fmt(r.amount)+'</td><td class="num">'+fmt(r.cash_paid)+'</td><td class="num">'+fmt(r.owner_paid)+'</td><td class="num '+(parseFloat(r.due)>0?'negative':'')+'">'+fmt(r.due)+'</td><td>'+(r.payment_method||'')+'</td></tr>').join('');
-    summaryChips('vendorInvoicesSummary', [{l:'Total',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0))},{l:'Due',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.due)||0),0))},{l:'Invoices',v:rows.length}]);
+    const totalAmt = rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const cashPaid = rows.reduce((s,r)=>s+(parseFloat(r.cash_paid)||0),0);
+    const ownerPaid = rows.reduce((s,r)=>s+(parseFloat(r.owner_paid)||0),0);
+    const totalDue = rows.reduce((s,r)=>s+(parseFloat(r.due)||0),0);
+    summaryChips('vendorInvoicesSummary', [
+        {l:'Total Bills',v:fmt(totalAmt)},
+        {l:'Cash Paid',v:fmt(cashPaid)},
+        {l:'Owner Paid',v:fmt(ownerPaid)},
+        {l:'Due',v:fmt(totalDue)},
+        {l:'Invoices',v:rows.length}
+    ]);
 }
 
 function renderSales(rows) {
