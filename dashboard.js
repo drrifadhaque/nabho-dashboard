@@ -256,10 +256,20 @@ function renderMiniSummaries(cb, vi, sl, st, att, tg, rc, sm) {
         stat('Negative', neg, neg>0?'negative':'') +
         stat('In Stock', st.filter(r=>(parseFloat(r.qty)||0)>=5).length));
     
+    // Aggregate attendance by name for mini summary
+    const attByName = {};
+    att.forEach(r => {
+        const name = (r.employee||'').trim();
+        if (!name) return;
+        if (!attByName[name]) attByName[name] = {work:0, break:0};
+        attByName[name].work += parseFloat(r.work_hours)||0;
+        attByName[name].break += parseFloat(r.break_hours)||0;
+    });
+    const attAgg = Object.values(attByName);
     el('miniAttendanceBody',
-        stat('Employees', att.length) +
-        stat('Total Hours', att.reduce((s,r)=>s+(parseFloat(r.work_hours)||0),0).toFixed(1)+'h') +
-        stat('On Leave', att.filter(r=>r.leave&&r.leave!=='-').length));
+        stat('Employees', attAgg.length) +
+        stat('Total Hours', attAgg.reduce((s,r)=>s+r.work,0).toFixed(1)+'h') +
+        stat('Total Break', attAgg.reduce((s,r)=>s+r.break,0).toFixed(1)+'h'));
     
     el('miniTelegramBody',
         stat('Total', fmt(tg.reduce((s,r)=>s+(parseFloat(r.amount)||0),0))) +
@@ -307,8 +317,19 @@ function renderStock(rows) {
 function renderAtt(rows) {
     const tb = document.querySelector('#table-attendance tbody');
     if (!rows.length) { tb.innerHTML = emptyRow('attendance'); return; }
-    tb.innerHTML = rows.map(r => '<tr><td>'+(r.employee||'')+'</td><td>'+(r.check_in||'-')+'</td><td>'+(r.check_out||'-')+'</td><td>'+(r.work_hours||0)+'</td><td>'+(r.break_hours||0)+'</td><td>'+(r.leave||'-')+'</td></tr>').join('');
-    summaryChips('attendanceSummary', [{l:'Employees',v:rows.length},{l:'Hours',v:rows.reduce((s,r)=>s+(parseFloat(r.work_hours)||0),0).toFixed(1)+'h'}]);
+    // Aggregate by employee name
+    const byName = {};
+    rows.forEach(r => {
+        const name = (r.employee||'').trim();
+        if (!name) return;
+        if (!byName[name]) byName[name] = {work:0, break:0, leave:null};
+        byName[name].work += parseFloat(r.work_hours)||0;
+        byName[name].break += parseFloat(r.break_hours)||0;
+        if (r.leave && r.leave !== '-') byName[name].leave = r.leave;
+    });
+    const aggregated = Object.entries(byName).map(([name, d]) => ({name, work:d.work, break:d.break, leave:d.leave})).sort((a,b) => b.work-a.work);
+    tb.innerHTML = aggregated.map(r => '<tr><td>'+r.name+'</td><td class="num">'+r.work.toFixed(1)+'h</td><td class="num">'+r.break.toFixed(1)+'h</td></tr>').join('');
+    summaryChips('attendanceSummary', [{l:'Employees',v:aggregated.length},{l:'Total Hours',v:aggregated.reduce((s,r)=>s+r.work,0).toFixed(1)+'h'},{l:'Total Break',v:aggregated.reduce((s,r)=>s+r.break,0).toFixed(1)+'h'}]);
 }
 
 function renderTG(rows) {
