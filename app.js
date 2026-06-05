@@ -281,7 +281,7 @@ function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, s
 
     // Charts — fire and forget, don't block UI
     renderSalesTrendChart().catch(e => console.warn('Sales chart error:', e));
-    renderPaymentMixChart(sales);
+    renderPaymentMixChart(cashSales, upiSales);
 }
 
 function renderOverviewCashbox(rows) {
@@ -573,23 +573,23 @@ async function renderSalesTrendChart() {
     }
 }
 
-function renderPaymentMixChart(sales) {
+function renderPaymentMixChart(cashTotal, upiTotal) {
     const canvas = document.getElementById('chartPaymentMix');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
     try {
-        const cashTotal = sales.filter(r => !r.payment || r.payment.toLowerCase().includes('cash')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
-        const upiTotal = sales.filter(r => r.payment && r.payment.toLowerCase().includes('upi')).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
-        const otherTotal = sales.reduce((s,r) => s + (parseFloat(r.total)||0), 0) - cashTotal - upiTotal;
-
         if (paymentMixChart) paymentMixChart.destroy();
+        if (cashTotal === 0 && upiTotal === 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
         paymentMixChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Cash', 'UPI', 'Other'],
+                labels: ['Cash', 'UPI'],
                 datasets: [{
-                    data: [cashTotal, upiTotal, Math.max(0, otherTotal)],
+                    data: [cashTotal, upiTotal],
                     backgroundColor: ['#0070f3', '#00d68f', '#7928ca'],
                     borderColor: '#111',
                     borderWidth: 2
