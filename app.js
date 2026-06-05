@@ -261,19 +261,19 @@ function renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, s
     const closingCash = summary ? summary.closing_cash : 0;
     const closingUpi = summary ? summary.closing_upi : 0;
 
-    document.getElementById('kpi-sales').textContent = formatCurrency(totalSales);
+    animateValue(document.getElementById('kpi-sales'), formatCurrency(totalSales));
     document.getElementById('kpi-sales-txn').textContent = `${txnCount} transactions (Cash ${formatCurrency(cashSales)} + UPI ${formatCurrency(upiSales)})`;
-    document.getElementById('kpi-profit').textContent = formatCurrency(profit);
+    animateValue(document.getElementById('kpi-profit'), formatCurrency(profit));
     document.getElementById('kpi-profit-margin').textContent = totalSales > 0 ? `${((profit/totalSales)*100).toFixed(1)}% margin` : '0% margin';
-    document.getElementById('kpi-stock').textContent = formatCurrency(totalStockValue);
+    animateValue(document.getElementById('kpi-stock'), formatCurrency(totalStockValue));
     document.getElementById('kpi-stock-items').textContent = `${stock.length} items`;
-    document.getElementById('kpi-vendor').textContent = formatCurrency(totalVendor);
+    animateValue(document.getElementById('kpi-vendor'), formatCurrency(totalVendor));
     document.getElementById('kpi-vendor-count').textContent = `${vendorInvoices.length} invoices`;
-    document.getElementById('kpi-discrepancies').textContent = discrepancies;
+    animateValue(document.getElementById('kpi-discrepancies'), discrepancies);
     document.getElementById('kpi-discrepancies-detail').textContent = discrepancies === 0 ? 'All checks passed' : `${discrepancies} issues found`;
-    document.getElementById('kpi-closing-cash').textContent = formatCurrency(closingCash);
+    animateValue(document.getElementById('kpi-closing-cash'), formatCurrency(closingCash));
     document.getElementById('kpi-closing-cash-detail').textContent = `Opening: ${formatCurrency(summary ? summary.opening_cash : 0)}`;
-    document.getElementById('kpi-closing-upi').textContent = formatCurrency(closingUpi);
+    animateValue(document.getElementById('kpi-closing-upi'), formatCurrency(closingUpi));
     document.getElementById('kpi-closing-upi-detail').textContent = `Opening: ${formatCurrency(summary ? summary.opening_upi : 0)}`;
 
     renderOverviewCashbox(cashbox.slice(-5));
@@ -613,6 +613,14 @@ function formatCurrency(val) {
     const num = parseFloat(val) || 0;
     if (num === 0) return '₹0';
     return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+// ─── Count-up animation for KPI values ───
+function animateValue(el, endText) {
+    if (!el) return;
+    el.setAttribute('data-animate', '');
+    el.textContent = endText;
+    setTimeout(() => el.removeAttribute('data-animate'), 600);
 }
 
 function sortTable(tableId, field, thEl) {
