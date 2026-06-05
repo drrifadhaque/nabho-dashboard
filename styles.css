@@ -305,7 +305,7 @@ body {
 
 /* ─── Sections ─── */
 .section { display: none; }
-.section.active { display: block; animation: fadeSlideIn 0.35s ease; }
+.section.active { display: block; animation: fadeSlideIn 0.35s ease; min-height: 0; }
 @keyframes fadeSlideIn {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: none; }
@@ -566,9 +566,9 @@ body {
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    overflow-x: auto;
-    overflow-y: auto;
+    overflow: auto;
     max-height: 75vh;
+    min-height: 200px;
     -webkit-overflow-scrolling: touch;
     box-shadow: 0 1px 3px var(--shadow);
     position: relative;
