@@ -676,3 +676,24 @@ function hideLoading(force) {
     const el = document.getElementById('loading');
     el.classList.add('hidden');
 }
+
+// ─── Overflow detection — add scroll hints to wide tables ───
+function detectTableOverflow() {
+    document.querySelectorAll('.table-container').forEach(container => {
+        const table = container.querySelector('.data-table');
+        if (!table) return;
+        if (table.scrollWidth > container.clientWidth) {
+            container.classList.add('has-overflow');
+        } else {
+            container.classList.remove('has-overflow');
+        }
+    });
+}
+
+// Run overflow check after any table render and on resize
+const origRenderTable = renderTable;
+renderTable = function(tableId, rows, cellMapper) {
+    origRenderTable(tableId, rows, cellMapper);
+    requestAnimationFrame(detectTableOverflow);
+};
+window.addEventListener('resize', detectTableOverflow);
