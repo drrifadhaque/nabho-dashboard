@@ -425,7 +425,9 @@ async function renderCharts(sales) {
     
     // Sales trend
     try {
-        const {data} = await sb.from('daily_summaries').select('date,total_sales,total_profit').order('date');
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
+        const {data} = await sb.from('daily_summaries').select('date,total_sales,total_profit').gte('date', fromDate).order('date');
         if (data && data.length) {
             const canvas = document.getElementById('chartSalesTrend');
             if (canvas) {
