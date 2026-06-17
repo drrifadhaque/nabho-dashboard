@@ -444,8 +444,8 @@ async function renderCharts(sales) {
     
     // Payment mix — Cash vs UPI from CashBox
     try {
-        const cashIn = window._cashboxData ? window._cashboxData.filter(r=>r.type&&r.type.toLowerCase().includes('sale-cash')).reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0) : 0;
-        const upiIn = window._cashboxData ? window._cashboxData.filter(r=>r.type&&r.type.toLowerCase().includes('sale-upi')).reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0) : 0;
+        const cashIn = window._cashboxData ? window._cashboxData.filter(r=>r.transaction_type&&r.transaction_type.toLowerCase().includes('sale-cash')).reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0) : 0;
+        const upiIn = window._cashboxData ? window._cashboxData.filter(r=>r.transaction_type&&r.transaction_type.toLowerCase().includes('sale-upi')).reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0) : 0;
         const canvas = document.getElementById('chartPaymentMix');
         if (canvas && (cashIn > 0 || upiIn > 0)) {
             canvas.style.height = '250px';
