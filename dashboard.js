@@ -60,7 +60,7 @@ function setupNav() {
             link.classList.add('active');
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
             document.getElementById('section-'+s).classList.add('active');
-            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'All Transactions',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation',bank_reconciliation:'Bank Reconciliation'};
+            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'All Transactions',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation',vendor_dues:'Vendor Dues',bank_reconciliation:'Bank Reconciliation'};
             document.getElementById('pageTitle').textContent = t[s]||s;
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('hamburger').classList.remove('active');
@@ -176,6 +176,10 @@ async function loadAll() {
         renderTG(telegramInvoices);
         renderRecon(reconciliation);
         renderMiniSummaries(cashbox, vendorInvoices, sales, stock, attendance, telegramInvoices, reconciliation, summary);
+        
+        // Load extras (Astra's additions)
+        try { await fetchYesterdayKPIs(); } catch(e) { console.warn('Yesterday KPIs:', e); }
+        try { await loadVendorDues(); } catch(e) { console.warn('Vendor dues:', e); }
         
         setStatus('Connected to Supabase', false);
     } catch(e) {
@@ -454,3 +458,114 @@ function summaryChips(id, chips) { const el=document.getElementById(id); if(el) 
 function setStatus(msg, err) { document.getElementById('connectionStatus').textContent = msg; const dot = document.querySelector('.status-dot'); if(err){dot.classList.add('error');dot.classList.remove('online');}else{dot.classList.add('online');dot.classList.remove('error');} }
 function showLoad() { const el=document.getElementById('loading'); el.style.display='flex'; el.style.opacity='1'; el.style.pointerEvents='auto'; }
 function hideLoad() { const el=document.getElementById('loading'); el.style.display='none'; el.style.opacity='0'; el.style.pointerEvents='none'; }
+
+// ═══ IMPROVEMENTS BY ASTRA ═══
+
+// --- Retry Logic ---
+async function retryQuery(queryFn, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await queryFn();
+            if (!result.error) return result;
+            if (attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+                continue;
+            }
+            return result;
+        } catch (err) {
+            if (attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+                continue;
+            }
+            throw err;
+        }
+    }
+}
+
+// --- Yesterday Comparison ---
+let _yesterdayData = null;
+
+async function fetchYesterdayKPIs() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().slice(0, 10);
+    try {
+        const {data} = await sb.from('daily_summaries').select('*').eq('date', yStr).limit(1);
+        _yesterdayData = data && data.length ? data[0] : null;
+    } catch(e) { _yesterdayData = null; }
+}
+
+function trendHTML(todayVal, yesterdayVal) {
+    if (!_yesterdayData || !yesterdayVal || yesterdayVal === 0) return '';
+    const diff = todayVal - yesterdayVal;
+    const pct = Math.abs(Math.round((diff / yesterdayVal) * 100));
+    if (diff > 0) return ' <span class="trend-up">↑+' + pct + '%</span>';
+    if (diff < 0) return ' <span class="trend-down">↓-' + pct + '%</span>';
+    return ' <span class="trend-flat">→0%</span>';
+}
+
+// --- Export to CSV ---
+function exportTableToCSV(tableId, filename) {
+    const table = document.getElementById('table-' + tableId);
+    if (!table) return;
+    const rows = [];
+    table.querySelectorAll('tr').forEach(tr => {
+        const cells = [];
+        tr.querySelectorAll('th, td').forEach(td => {
+            cells.push('"' + td.textContent.trim().replace(/"/g, '""') + '"');
+        });
+        rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'nabho-' + tableId + '-' + curDate + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// --- Vendor Dues ---
+let _vendorDues = [];
+
+async function loadVendorDues() {
+    try {
+        const {data} = await sb.from('vendor_invoices').select('*').gt('due', 0);
+        _vendorDues = (data || []).filter(v => !v.date_of_clear && v.date_of_clear !== 'Cleared');
+        renderVendorDues();
+    } catch(e) { _vendorDues = []; renderVendorDues(); }
+}
+
+function renderVendorDues() {
+    const tb = document.querySelector('#table-vendor_dues tbody');
+    if (!tb) return;
+    if (!_vendorDues.length) {
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-3)">No outstanding dues ✅</td></tr>';
+    } else {
+        tb.innerHTML = _vendorDues.map(r => '<tr><td>' + r.date + '</td><td>' + (r.vendor||'-') + '</td><td>' + (r.invoice_no||'-') + '</td><td class="num">' + fmt(r.amount) + '</td><td class="num negative">' + fmt(r.due) + '</td><td>' + (r.note||'-') + '</td></tr>').join('');
+    }
+    const total = _vendorDues.reduce((s,r) => s + (parseFloat(r.due)||0), 0);
+    summaryChips('vendorDuesSummary', [{l:'Outstanding', v:fmt(total)}, {l:'Invoices', v:_vendorDues.length}, {l:'Status', v:total > 0 ? '⚠️ ' + _vendorDues.length + ' due' : '✅ All clear'}]);
+}
+
+// --- Override loadAll to add improvements ---
+const _origLoadAll = loadAll;
+loadAll = async function() {
+    await fetchYesterdayKPIs();
+    await _origLoadAll();
+    await loadVendorDues();
+};
+
+// --- Override renderOverview to add trend arrows ---
+const _origRenderOverview = renderOverview;
+renderOverview = function(cb, vi, sl, st, rc, sm) {
+    _origRenderOverview(cb, vi, sl, st, rc, sm);
+    if (_yesterdayData) {
+        const salesEl = document.getElementById('kpi-sales');
+        const profitEl = document.getElementById('kpi-profit');
+        const vendorEl = document.getElementById('kpi-vendor');
+        if (salesEl) salesEl.innerHTML = salesEl.textContent + trendHTML(parseFloat(sm?.total_sales)||0, parseFloat(_yesterdayData.total_sales)||0);
+        if (profitEl) profitEl.innerHTML = profitEl.textContent + trendHTML(parseFloat(sm?.total_profit)||0, parseFloat(_yesterdayData.total_profit)||0);
+        if (vendorEl) vendorEl.innerHTML = vendorEl.textContent + trendHTML(vi.reduce((s,r)=>s+(parseFloat(r.amount)||0),0), parseFloat(_yesterdayData.total_vendor_amount)||0);
+    }
+};
