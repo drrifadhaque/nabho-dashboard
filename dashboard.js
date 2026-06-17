@@ -374,19 +374,25 @@ function renderStock(rows) {
 function renderAtt(rows) {
     const tb = document.querySelector('#table-attendance tbody');
     if (!rows.length) { tb.innerHTML = emptyRow('attendance'); return; }
-    // Aggregate by employee name
-    const byName = {};
-    rows.forEach(r => {
-        const name = (r.employee||'').trim();
-        if (!name) return;
-        if (!byName[name]) byName[name] = {work:0, break:0, leave:null};
-        byName[name].work += parseFloat(r.work_hours)||0;
-        byName[name].break += parseFloat(r.break_hours)||0;
-        if (r.leave && r.leave !== '-') byName[name].leave = r.leave;
-    });
-    const aggregated = Object.entries(byName).map(([name, d]) => ({name, work:d.work, break:d.break, leave:d.leave})).sort((a,b) => b.work-a.work);
-    tb.innerHTML = aggregated.map(r => '<tr><td>'+r.name+'</td><td class="num">'+r.work.toFixed(1)+'h</td><td class="num">'+r.break.toFixed(1)+'h</td></tr>').join('');
-    summaryChips('attendanceSummary', [{l:'Employees',v:aggregated.length},{l:'Total Hours',v:aggregated.reduce((s,r)=>s+r.work,0).toFixed(1)+'h'},{l:'Total Break',v:aggregated.reduce((s,r)=>s+r.break,0).toFixed(1)+'h'}]);
+    // Use pre-aggregated rows from Supabase
+    const sorted = rows.slice().sort((a,b) => (parseFloat(b.work_hours)||0) - (parseFloat(a.work_hours)||0));
+    tb.innerHTML = sorted.map(r => {
+        const name = r.employee || '';
+        const ci = r.check_in || '-';
+        const co = r.check_out || '-';
+        const work = (parseFloat(r.work_hours)||0).toFixed(1) + 'h';
+        const brk = (parseFloat(r.break_hours)||0).toFixed(1) + 'h';
+        const leave = r.leave;
+        let statusHTML = '';
+        if (leave) statusHTML = '<span class="badge badge-fail">Leave</span>';
+        else if (parseFloat(r.work_hours) >= 8) statusHTML = '<span class="badge badge-pass">Full Day</span>';
+        else if (parseFloat(r.work_hours) > 0) statusHTML = '<span class="badge badge-warn">Half Day</span>';
+        else statusHTML = '<span class="badge badge-fail">Absent</span>';
+        return '<tr><td>'+name+'</td><td>'+ci+'</td><td>'+co+'</td><td class="num">'+work+'</td><td class="num">'+brk+'</td><td>'+statusHTML+'</td></tr>';
+    }).join('');
+    const present = rows.filter(r => !r.leave).length;
+    const onLeave = rows.filter(r => r.leave).length;
+    summaryChips('attendanceSummary', [{l:'Employees',v:rows.length},{l:'Present',v:present,cls:'positive'},{l:'Leave',v:onLeave,cls:onLeave?'negative':''},{l:'Total Hours',v:rows.reduce((s,r)=>s+(parseFloat(r.work_hours)||0),0).toFixed(1)+'h'},{l:'Total Break',v:rows.reduce((s,r)=>s+(parseFloat(r.break_hours)||0),0).toFixed(1)+'h'}]);
 }
 
 function renderTG(rows) {
