@@ -442,17 +442,17 @@ async function renderCharts(sales) {
         }
     } catch(e) { console.warn('Sales trend chart error:', e); }
     
-    // Payment mix — Cash and UPI only
+    // Payment mix — Cash vs UPI from CashBox
     try {
-        const cash = sales.filter(r=>!r.payment||r.payment.toLowerCase().includes('cash')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
-        const upi = sales.filter(r=>r.payment&&r.payment.toLowerCase().includes('upi')).reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+        const cashIn = window._cashboxData ? window._cashboxData.filter(r=>r.type&&r.type.toLowerCase().includes('sale-cash')).reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0) : 0;
+        const upiIn = window._cashboxData ? window._cashboxData.filter(r=>r.type&&r.type.toLowerCase().includes('sale-upi')).reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0) : 0;
         const canvas = document.getElementById('chartPaymentMix');
-        if (canvas) {
+        if (canvas && (cashIn > 0 || upiIn > 0)) {
             canvas.style.height = '250px';
             canvas.style.maxHeight = '250px';
             new Chart(canvas.getContext('2d'), { type:'doughnut', data:{
-                labels:['Cash','UPI'],
-                datasets:[{data:[cash,upi],backgroundColor:[blueColor,greenColor],borderWidth:0}]
+                labels:['Cash ₹'+fmt(cashIn),'UPI ₹'+fmt(upiIn)],
+                datasets:[{data:[cashIn,upiIn],backgroundColor:[blueColor,greenColor],borderWidth:0}]
             }, options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:textColor,padding:16,font:{size:11}}}}} });
         }
     } catch(e) { console.warn('Payment mix chart error:', e); }
