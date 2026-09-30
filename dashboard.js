@@ -162,11 +162,17 @@ async function loadAll() {
         const cashbox = cb.status==='fulfilled'?cb.value:[];
         window._cashboxData = cashbox;
         const vendorInvoices = vi.status==='fulfilled'?vi.value:[];
+        window._vendorData = vendorInvoices;
         const sales = sl.status==='fulfilled'?sl.value:[];
+        window._salesData = sales;
         const stock = st.status==='fulfilled'?st.value:[];
+        window._stockData = stock;
         const attendance = att.status==='fulfilled'?att.value:[];
+        window._attendanceData = attendance;
         const telegramInvoices = tg.status==='fulfilled'?tg.value:[];
+        window._telegramData = telegramInvoices;
         const reconciliation = rc.status==='fulfilled'?rc.value:[];
+        window._reconData = reconciliation;
         const summary = sm.status==='fulfilled'?sm.value:null;
         
         renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summary);

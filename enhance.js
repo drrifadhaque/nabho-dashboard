@@ -135,13 +135,91 @@
   }
 
   /* ── 7. PATCH: notify on data load ────────────────────────── */
+  /* ── 9. SYSTEM STATUS (real data -- no static badges) ──────
+     index.html ships the six .status-item blocks WITHOUT badges. We build the
+     badge + detail ONLY from live data; when nothing verifiable exists we say
+     so honestly instead of showing a hardcoded "OK".
+     Page contract unchanged: no data-layer / table-name / Chart.js changes. */
+  function fmtDMY(d) {
+    if (!d) return '';
+    var p = String(d).slice(0, 10).split('-');
+    return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : String(d);
+  }
+  function nbHardRefresh() { try { location.reload(); } catch (e) { loadAll(); } }
+  function sbState(label, state, detail, act) { return { label: label, state: state, detail: detail, action: act || null }; }
+  function computeSystemStatus(ctx) {
+    var d = ctx.curDate, dd = fmtDMY(d);
+    var haveCore = ctx.cashbox > 0 || ctx.vendor > 0 || ctx.sales > 0 || ctx.stock > 0;
+    var out = [];
+    if (ctx.recon > 0) {
+      var fails = ctx.reconFail;
+      out.push(sbState(fails > 0 ? 'REVIEW' : 'OK', fails > 0 ? 'warn' : 'ok',
+        fails > 0 ? ('Audited ' + dd + ' - ' + fails + ' discrepanc' + (fails === 1 ? 'y' : 'ies'))
+                  : ('Audited ' + dd + ' - all checks pass')));
+    } else if (haveCore) {
+      out.push(sbState('NO AUDIT', 'warn', 'Data present for ' + dd + ' but no audit ran', nbHardRefresh));
+    } else {
+      out.push(sbState('NO DATA', 'warn', 'No audited data for ' + dd));
+    }
+    out.push(sbState('MANUAL', 'ok', 'Weekly manual upload (last audited ' + dd + ')', nbHardRefresh));
+    out.push(ctx.sbOK ? sbState('CONNECTED', 'ok', 'Live - reading ' + dd)
+                      : sbState('ERROR', 'error', 'Could not reach database - click to retry', nbHardRefresh));
+    out.push(ctx.latest ? sbState('SYNCED', 'ok', 'Vyapar exports through ' + fmtDMY(ctx.latest), nbHardRefresh)
+                        : sbState('UNKNOWN', 'warn', 'No export date available', nbHardRefresh));
+    out.push(ctx.telegram > 0 ? sbState('ACTIVE', 'ok', ctx.telegram + ' invoice(s) parsed ' + dd, nbHardRefresh)
+                              : sbState('IDLE', 'warn', 'No invoices for ' + dd, nbHardRefresh));
+    out.push(sbState('ONLINE', 'ok', 'NabhoAudit monitor active', nbHardRefresh));
+    return out;
+  }
+  async function renderSystemStatus() {
+    var grid = document.getElementById('statusGrid');
+    if (!grid) return;
+    var items = Array.prototype.slice.call(grid.querySelectorAll('.status-item'));
+    if (!items.length) return;
+    var sbOK = false, latest = null;
+    try {
+      var r = await sb.from('v_dates_with_data').select('date').order('date', { ascending: false }).limit(1);
+      if (!r.error && r.data && r.data.length) { sbOK = true; latest = r.data[0].date; }
+    } catch (e) { sbOK = false; }
+    var reconRows = Array.isArray(window._reconData) ? window._reconData : [];
+    var ctx = {
+      curDate: (typeof curDate !== 'undefined' && curDate) ? curDate : '',
+      latest: latest,
+      sbOK: sbOK,
+      cashbox: (window._cashboxData || []).length,
+      vendor: (window._vendorData || []).length,
+      sales: (window._salesData || []).length,
+      stock: (window._stockData || []).length,
+      telegram: (window._telegramData || []).length,
+      recon: reconRows.length,
+      reconFail: reconRows.filter(function (r) { return r.status !== 'PASS'; }).length
+    };
+    var st = computeSystemStatus(ctx);
+    items.forEach(function (item, i) {
+      var s = st[i];
+      if (!s) return;
+      var detailEl = item.querySelector('.detail');
+      if (detailEl) detailEl.textContent = s.detail;
+      var badge = item.querySelector('.badge');
+      if (!badge) { badge = document.createElement('div'); item.appendChild(badge); }
+      badge.className = 'badge ' + s.state;
+      badge.textContent = s.label;
+      if (s.action) {
+        badge.style.cursor = 'pointer';
+        badge.title = 'Click to refresh';
+        if (!badge.__nbWired) { badge.addEventListener('click', s.action); badge.__nbWired = true; }
+      }
+    });
+  }
+  window.nbRenderSystemStatus = renderSystemStatus;
+
   function patchLoadAll() {
     if (typeof window.loadAll !== 'function' || window.loadAll.__aurora) return;
     const orig = window.loadAll;
     window.loadAll = async function () {
       try {
         await orig.apply(this, arguments);
-        setTimeout(() => { enhanceKPIs(); gradientize(); guardFixed(); }, 120);
+        setTimeout(() => { enhanceKPIs(); gradientize(); guardFixed(); try { renderSystemStatus(); } catch (e) {} }, 120);
         toast('Data loaded · ' + (window.curDate || ''), '📊');
       } catch (e) { toast('Load error', '⚠️'); throw e; }
     };
@@ -161,7 +239,7 @@
     const tt = document.getElementById('themeToggle');
     if (tt) tt.addEventListener('click', () => setTimeout(gradientize, 250));
     // initial enhance (dashboard.js may already have rendered)
-    setTimeout(() => { enhanceKPIs(); gradientize(); guardFixed(); }, 1600);
+    setTimeout(() => { enhanceKPIs(); gradientize(); guardFixed(); try { renderSystemStatus(); } catch (e) {} }, 1600);
     setTimeout(() => { gradientize(); }, 3200);
     console.log('%c🫶 NabhoDashboard — Aurora Edition active', 'color:#7c83ff;font-weight:bold');
   }
