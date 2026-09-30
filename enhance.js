@@ -18,43 +18,18 @@
   }
   window.nbToast = toast;
 
-  /* ── 2. COUNT-UP KPI VALUES ───────────────────────────────── */
-  function animateValue(el, from, to, dur, done) {
-    if (!isFinite(to)) { if (done) done(); return; }
-    const start = performance.now();
-    const isMoney = el.dataset.money !== '0';
-    const write = v => { el.textContent = isMoney ? '₹' + Math.round(v).toLocaleString('en-IN') : Math.round(v).toLocaleString('en-IN'); };
-    // Safety net: whatever happens to rAF (throttled/hidden tab), land on the
-    // exact value after the tween window. Prevents "stuck at ₹0" regressions.
-    const finish = () => { write(to); if (done) done(); };
-    const guard = setTimeout(finish, dur + 150);
-    (function frame(now) {
-      const t = Math.min((now - start) / dur, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      write(from + (to - from) * eased);
-      if (t < 1) requestAnimationFrame(frame);
-      else { clearTimeout(guard); finish(); }
-    })(start);
-  }
-
+  /* ── 2. KPI VALUES ───────────────────────────────────────── */
+  // IMPORTANT (2026-10-01): the previous COUNT-UP used requestAnimationFrame.
+  // rAF is paused when the tab is backgrounded/hidden, so the value froze on
+  // the FIRST frame (₹0) — a real, user-visible bug (screenshots/background
+  // tabs showed ₹0 while the DOM had real numbers). Value correctness must NOT
+  // depend on an animation/timer, so the count-up is removed. dashboard.js
+  // writes the authoritative value directly and we only add a cosmetic class.
   function enhanceKPIs() {
     document.querySelectorAll('.kpi-value').forEach(el => {
-      // Prefer an explicit target stashed by the renderer (dataset.nbTarget).
-      // Falling back to parsing the live text was unsafe: a re-entrant call
-      // mid-animation re-read a partial value and ratcheted KPIs down to ₹0.
-      let target;
-      if (el.dataset.nbTarget !== undefined) {
-        target = parseFloat(el.dataset.nbTarget);
-      } else {
-        const m = el.textContent.replace(/[^0-9.\-]/g, '');
-        target = parseFloat(m);
-      }
-      if (isNaN(target)) return;
-      el.dataset.money = el.textContent.includes('₹') || el.dataset.nbTarget !== undefined ? '1' : '0';
-      if (el.dataset.nbAnimating === '1') return;   // don't restart a running tween
-      el.dataset.nbAnimating = '1';
+      // Nothing to recompute: the renderer owns the value. Just flag it so CSS
+      // can apply the shimmer/entrance treatment.
       el.setAttribute('data-animate', '');
-      animateValue(el, 0, target, 900, () => { el.dataset.nbAnimating = '0'; });
     });
   }
 
