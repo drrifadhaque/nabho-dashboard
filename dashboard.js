@@ -208,21 +208,28 @@ function renderOverview(cb, vi, sl, st, rc, sm) {
         totalSales = cashSales + upiSales;
     }
     const p = sm?.total_profit||0;
-    document.getElementById('kpi-sales').textContent = fmt(totalSales);
+    // KPIs: stash authoritative value in dataset.nbTarget so the count-up
+    // layer (enhance.js) animates to the REAL number, never a mid-flight read.
+    const setK = (id,v) => { const e=document.getElementById(id); if(e){ e.textContent=fmt(v); e.dataset.nbTarget=String(parseFloat(v)||0); } };
+    setK('kpi-sales', totalSales);
     document.getElementById('kpi-sales-txn').textContent = txnCount+' transactions (Cash '+fmt(cashSales)+' + UPI '+fmt(upiSales)+')';
-    document.getElementById('kpi-profit').textContent = fmt(p);
+    setK('kpi-profit', p);
     document.getElementById('kpi-profit-margin').textContent = totalSales>0?((p/totalSales*100).toFixed(1)+'% margin'):'0%';
-    document.getElementById('kpi-stock').textContent = fmt(sm?.total_stock_value);
+    setK('kpi-stock', sm?.total_stock_value);
     document.getElementById('kpi-stock-items').textContent = st.length+' items';
-    document.getElementById('kpi-vendor').textContent = fmt(vi.reduce((s,r) => s+(parseFloat(r.amount)||0), 0));
+    setK('kpi-vendor', vi.reduce((s,r) => s+(parseFloat(r.amount)||0), 0));
     document.getElementById('kpi-vendor-count').textContent = vi.length+' invoices';
     document.getElementById('kpi-discrepancies').textContent = rc.filter(r=>r.status!=='PASS').length;
     document.getElementById('kpi-discrepancies-detail').textContent = rc.filter(r=>r.status!=='PASS').length===0?'All checks passed':rc.filter(r=>r.status!=='PASS').length+' issues';
-    document.getElementById('kpi-closing-cash').textContent = fmt(sm?.closing_cash||0);
+    setK('kpi-closing-cash', sm?.closing_cash||0);
     document.getElementById('kpi-closing-cash-detail').textContent = 'Opening: '+fmt(sm?.opening_cash||0);
-    document.getElementById('kpi-closing-upi').textContent = fmt(sm?.closing_upi||0);
+    setK('kpi-closing-upi', sm?.closing_upi||0);
     document.getElementById('kpi-closing-upi-detail').textContent = 'Opening: '+fmt(sm?.opening_upi||0);
-    
+
+    // Trigger the count-up layer now that authoritative targets are set.
+    // (enhance.js exposes this hook; harmless if not loaded yet.)
+    if (window.nbEnhanceKPIs) { try { window.nbEnhanceKPIs(); } catch(e) {} }
+
     renderCharts(sl);
 }
 
