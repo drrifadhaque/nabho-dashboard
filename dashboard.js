@@ -17,7 +17,9 @@ const fmt = v => { const n = parseFloat(v)||0; return n===0?'₹0':'₹'+n.toLoc
 // ─── Theme ───
 function initTheme() {
     const saved = localStorage.getItem('nabho-theme');
-    const theme = saved || (IS_DARK ? 'dark' : 'light');
+    // Brand-first: Aurora dark is the default look (the futuristic experience).
+    // Visitors who explicitly choose light keep their choice; everyone else gets dark.
+    const theme = saved || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
     updateThemeBtn(theme);
 }
