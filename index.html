@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,11 +9,13 @@
     <title>NabhoDashboard — SM Nabho Group</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="mesh-bg"></div>
+    <div class="aurora-c"></div>
+    <div class="grain"></div>
 
     <!-- ─── Sidebar ─── -->
     <aside class="sidebar" id="sidebar">
@@ -95,7 +97,9 @@
                     <option value="NabhoBazaarCoochBehar" selected>Cooch Behar</option>
                     <option value="NabhoBazaarOkrabari">Okrabari</option>
                 </select>
-                <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+                <button class="theme-toggle" id="themeToggle" title="Toggle theme">☀️</button>
+                <div class="nb-clock" title="Live time"><span class="dot"></span><span id="nbClock">—</span></div>
+                <button class="theme-toggle" id="cmdkBtn" title="Command palette (Ctrl+K)">⌘</button>
             </div>
         </header>
 
@@ -474,11 +478,21 @@
         </section>
     </main>
 
+    <!-- ⌘K Command Palette -->
+    <div class="cmdk-overlay" id="cmdkOverlay">
+        <div class="cmdk">
+            <input class="cmdk-input" id="cmdkInput" type="text" placeholder="Jump to a section, toggle theme, reload…">
+            <div class="cmdk-list" id="cmdkList"></div>
+            <div class="cmdk-foot"><span>↑↓ navigate</span><span>↵ select</span><span>Esc close</span></div>
+        </div>
+    </div>
+
     <div class="loading-overlay" id="loading">
         <div class="loading-spinner"></div>
         <p>Loading data...</p>
     </div>
 
     <script src="dashboard.js"></script>
+    <script src="enhance.js"></script>
 </body>
 </html>
