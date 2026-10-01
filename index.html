@@ -63,10 +63,6 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                 <span>Vendor Dues</span>
             </a>
-            <a href="#" class="nav-link" data-section="bank_reconciliation">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 4v16M2 8h20M6 12h4M14 12h4M6 16h12"/></svg>
-                <span>Bank Reconciliation</span>
-            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="status-dot"></div>
@@ -102,6 +98,8 @@
                 <button class="theme-toggle" id="cmdkBtn" title="Command palette (Ctrl+K)">⌘</button>
             </div>
         </header>
+
+        <div id="nbStoreNotice" class="nb-store-notice" style="display:none;"></div>
 
         <!-- ═══ OVERVIEW ═══ -->
         <section class="section active" id="section-overview">
@@ -226,13 +224,6 @@
                         </div>
                     </div>
                     <div class="status-item">
-                        <div class="icon">🏦</div>
-                        <div class="info">
-                            <div class="title">Bank Reconciliation</div>
-                            <div class="detail" id="statusBank">Weekly cycle</div>
-                        </div>
-                    </div>
-                    <div class="status-item">
                         <div class="icon">☁️</div>
                         <div class="info">
                             <div class="title">Supabase</div>
@@ -242,22 +233,15 @@
                     <div class="status-item">
                         <div class="icon">📁</div>
                         <div class="info">
-                            <div class="title">Google Drive</div>
-                            <div class="detail" id="statusDrive">Vyapar Exports synced</div>
+                            <div class="title">Vyapar Sync</div>
+                            <div class="detail" id="statusSync">Checking…</div>
                         </div>
                     </div>
                     <div class="status-item">
                         <div class="icon">📱</div>
                         <div class="info">
-                            <div class="title">Telegram Bot</div>
-                            <div class="detail" id="statusTelegram">@sageclawaibot active</div>
-                        </div>
-                    </div>
-                    <div class="status-item">
-                        <div class="icon">🤖</div>
-                        <div class="info">
-                            <div class="title">Sage AI</div>
-                            <div class="detail" id="statusSage">MiMo V2.5 Pro</div>
+                            <div class="title">Telegram Invoices</div>
+                            <div class="detail" id="statusTelegram">Checking…</div>
                         </div>
                     </div>
                 </div>
@@ -342,7 +326,7 @@
                 <div class="table-container">
                     <table class="data-table" id="table-cb-txn">
                         <thead><tr>
-                            <th>Time</th><th>Type</th><th>Description</th><th>Amount</th>
+                            <th>Time</th><th>Type</th><th>Description</th><th>Inflow</th><th>Outflow</th><th>Balance</th>
                         </tr></thead>
                         <tbody></tbody>
                     </table>
@@ -452,24 +436,6 @@
             </div>
         </section>
 
-        <!-- ═══ BANK RECONCILIATION ═══ -->
-        <section class="section" id="section-bank_reconciliation">
-            <div class="section-header">
-                <h2>Bank Reconciliation</h2>
-                <div class="section-actions">
-                    <span style="font-size:13px;color:var(--text-3);">Weekly cycle — Upload bank statement every Monday</span>
-                </div>
-            </div>
-            <div class="summary-bar" id="bankReconSummary"></div>
-            <div class="recon-cards" id="bankReconCards">
-                <div class="overview-card" style="text-align:center;padding:40px;">
-                    <div style="font-size:48px;margin-bottom:16px;">🏦</div>
-                    <h3 style="font-size:16px;margin-bottom:8px;">Bank Reconciliation</h3>
-                    <p style="color:var(--text-3);font-size:13px;">Upload your weekly bank statement here.<br>This section will show reconciliation between CashBox closing balances and bank deposits.</p>
-                    <p style="color:var(--text-3);font-size:12px;margin-top:16px;">Bank statements are imported manually each Monday. CashBox closing balances are reconciled against recorded bank deposits.</p>
-                </div>
-            </div>
-        </section>
     </main>
 
     <!-- ⌘K Command Palette -->

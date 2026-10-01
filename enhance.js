@@ -87,7 +87,7 @@
     ['vendor_invoices', 'Vendor Invoices', '🧾'], ['sales', 'All Transactions', '📊'],
     ['stock', 'Stock', '📦'], ['attendance', 'Attendance', '👥'],
     ['telegram_invoices', 'Telegram Invoices', '📱'], ['reconciliation', 'Reconciliation', '🔍'],
-    ['vendor_dues', 'Vendor Dues', '💸'], ['bank_reconciliation', 'Bank Reconciliation', '🏦']
+    ['vendor_dues', 'Vendor Dues', '💸']
   ];
   function palette() {
     const ov = document.getElementById('cmdkOverlay');
@@ -136,9 +136,10 @@
 
   /* ── 7. PATCH: notify on data load ────────────────────────── */
   /* ── 9. SYSTEM STATUS (real data -- no static badges) ──────
-     index.html ships the six .status-item blocks WITHOUT badges. We build the
-     badge + detail ONLY from live data; when nothing verifiable exists we say
-     so honestly instead of showing a hardcoded "OK".
+     index.html ships four .status-item blocks WITHOUT badges (NabhoAudit,
+     Supabase, Vyapar Sync, Telegram Invoices). We build the badge + detail
+     ONLY from live data; a tile we cannot prove must not exist (Rifad's rule:
+     no fakes). Tiles for Bank / Drive / Sage were removed -- not verifiable.
      Page contract unchanged: no data-layer / table-name / Chart.js changes. */
   function fmtDMY(d) {
     if (!d) return '';
@@ -151,6 +152,7 @@
     var d = ctx.curDate, dd = fmtDMY(d);
     var haveCore = ctx.cashbox > 0 || ctx.vendor > 0 || ctx.sales > 0 || ctx.stock > 0;
     var out = [];
+    // 1) NabhoAudit -- the selected date's reconciliation result.
     if (ctx.recon > 0) {
       var fails = ctx.reconFail;
       out.push(sbState(fails > 0 ? 'REVIEW' : 'OK', fails > 0 ? 'warn' : 'ok',
@@ -161,14 +163,15 @@
     } else {
       out.push(sbState('NO DATA', 'warn', 'No audited data for ' + dd));
     }
-    out.push(sbState('MANUAL', 'ok', 'Weekly manual upload (last audited ' + dd + ')', nbHardRefresh));
+    // 2) Supabase -- live reachability.
     out.push(ctx.sbOK ? sbState('CONNECTED', 'ok', 'Live - reading ' + dd)
                       : sbState('ERROR', 'error', 'Could not reach database - click to retry', nbHardRefresh));
+    // 3) Vyapar Sync -- latest export date from v_dates_with_data.
     out.push(ctx.latest ? sbState('SYNCED', 'ok', 'Vyapar exports through ' + fmtDMY(ctx.latest), nbHardRefresh)
                         : sbState('UNKNOWN', 'warn', 'No export date available', nbHardRefresh));
+    // 4) Telegram Invoices -- parsed rows for the selected date.
     out.push(ctx.telegram > 0 ? sbState('ACTIVE', 'ok', ctx.telegram + ' invoice(s) parsed ' + dd, nbHardRefresh)
                               : sbState('IDLE', 'warn', 'No invoices for ' + dd, nbHardRefresh));
-    out.push(sbState('ONLINE', 'ok', 'NabhoAudit monitor active', nbHardRefresh));
     return out;
   }
   async function renderSystemStatus() {

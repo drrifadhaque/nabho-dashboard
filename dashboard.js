@@ -62,7 +62,7 @@ function setupNav() {
             link.classList.add('active');
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
             document.getElementById('section-'+s).classList.add('active');
-            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'All Transactions',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation',vendor_dues:'Vendor Dues',bank_reconciliation:'Bank Reconciliation'};
+            const t = {overview:'Overview',cashbox:'CashBox',vendor_invoices:'Vendor Invoices',sales:'All Transactions',stock:'Stock',attendance:'Attendance',telegram_invoices:'Telegram Invoices',reconciliation:'Reconciliation',vendor_dues:'Vendor Dues'};
             document.getElementById('pageTitle').textContent = t[s]||s;
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('hamburger').classList.remove('active');
@@ -174,6 +174,7 @@ async function loadAll() {
         const reconciliation = rc.status==='fulfilled'?rc.value:[];
         window._reconData = reconciliation;
         const summary = sm.status==='fulfilled'?sm.value:null;
+        window._summaryData = summary;
         
         renderOverview(cashbox, vendorInvoices, sales, stock, reconciliation, summary);
         renderCashbox(cashbox);
@@ -184,6 +185,7 @@ async function loadAll() {
         renderTG(telegramInvoices);
         renderRecon(reconciliation);
         renderMiniSummaries(cashbox, vendorInvoices, sales, stock, attendance, telegramInvoices, reconciliation, summary);
+        updateStoreNotice({cashbox:cashbox.length,vendor:vendorInvoices.length,sales:sales.length,stock:stock.length,attendance:attendance.length,telegram:telegramInvoices.length,reconciliation:reconciliation.length});
         
         // Load extras (Astra's additions)
         try { await fetchYesterdayKPIs(); } catch(e) { console.warn('Yesterday KPIs:', e); }
@@ -349,14 +351,17 @@ function renderAllTxn(vyapar, cashbox) {
     }
     // CashBox table (right side)
     const ct = document.querySelector('#table-cb-txn tbody');
-    if (!cashbox.length) { ct.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-3)">No CashBox data</td></tr>'; } else {
+    if (!cashbox.length) { ct.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-3)">No CashBox data for this date</td></tr>'; } else {
         ct.innerHTML = cashbox.map(r => {
-            const amt = (parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0)-(parseFloat(r.cash_out)||0)-(parseFloat(r.upi_out)||0);
-            return '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.description||'')+'</td><td class="num">'+fmt(amt)+'</td></tr>';
+            const inflow = (parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0);
+            const outflow = (parseFloat(r.cash_out)||0)+(parseFloat(r.upi_out)||0);
+            const bal = inflow - outflow;
+            return '<tr><td>'+(r.time||'')+'</td><td>'+(r.transaction_type||'')+'</td><td>'+(r.description||'')+'</td><td class="num positive">'+fmt(inflow)+'</td><td class="num">'+fmt(outflow)+'</td><td class="num '+(bal<0?'negative':'')+'">'+fmt(bal)+'</td></tr>';
         }).join('');
         // Total row
-        const cbTotal = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0)-(parseFloat(r.cash_out)||0)-(parseFloat(r.upi_out)||0),0);
-        ct.innerHTML += '<tr style="font-weight:700;background:var(--bg-surface)"><td colspan="3">TOTAL</td><td class="num">'+fmt(cbTotal)+'</td></tr>';
+        const inTotal = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_in)||0)+(parseFloat(r.upi_in)||0),0);
+        const outTotal = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_out)||0)+(parseFloat(r.upi_out)||0),0);
+        ct.innerHTML += '<tr style="font-weight:700;background:var(--bg-surface)"><td colspan="3">TOTAL</td><td class="num positive">'+fmt(inTotal)+'</td><td class="num">'+fmt(outTotal)+'</td><td class="num '+(inTotal-outTotal<0?'negative':'')+'">'+fmt(inTotal-outTotal)+'</td></tr>';
     }
     // Summary chips
     const poSale = vyapar.filter(r=>r.type&&r.type.includes('Sale'));
@@ -367,6 +372,7 @@ function renderAllTxn(vyapar, cashbox) {
     const cbCashIn = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_in)||0),0);
     const cbCashOut = cashbox.reduce((s,r)=>s+(parseFloat(r.cash_out)||0),0);
     const cbUpiIn = cashbox.reduce((s,r)=>s+(parseFloat(r.upi_in)||0),0);
+    const sm = window._summaryData || {};
     summaryChips('salesSummary', [
         {l:'Vyapar Sales',v:fmt(poSale.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
         {l:'Cash',v:fmt(cashSales.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
@@ -375,39 +381,70 @@ function renderAllTxn(vyapar, cashbox) {
         {l:'Expenses',v:fmt(expenses.reduce((s,r)=>s+(parseFloat(r.total)||0),0))},
         {l:'CB Cash In',v:fmt(cbCashIn)},
         {l:'CB Cash Out',v:fmt(cbCashOut)},
-        {l:'CB UPI In',v:fmt(cbUpiIn)}
+        {l:'CB UPI In',v:fmt(cbUpiIn)},
+        {l:'Closing Cash',v:fmt(sm.closing_cash||0)},
+        {l:'Closing UPI',v:fmt(sm.closing_upi||0)},
+        {l:'Net',v:fmt((parseFloat(sm.closing_cash)||0)+(parseFloat(sm.closing_upi)||0))}
     ]);
+}
+
+// W1-7: honest, store-named empty state (never silently blank tables).
+function updateStoreNotice(counts) {
+    const el = document.getElementById('nbStoreNotice');
+    if (!el) return;
+    const total = Object.values(counts).reduce((s,n)=>s+(n||0),0);
+    const names = {NabhoBazaarCoochBehar:'Cooch Behar', NabhoBazaarOkrabari:'Okrabari'};
+    if (total === 0) {
+        el.textContent = '📭 ' + (names[curStore]||curStore) + ' — no data ingested for ' + curDate + '. Nothing has been synced for this store/date yet.';
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
 }
 
 function renderStock(rows) {
     const tb = document.querySelector('#table-stock tbody');
     if (!rows.length) { tb.innerHTML = emptyRow('stock'); return; }
     tb.innerHTML = rows.map(r => { const st=(parseFloat(r.qty)||0)<0?'negative':(parseFloat(r.qty)||0)<5?'low':'ok'; return '<tr><td>'+(r.item_name||'')+'</td><td>'+(r.barcode||'')+'</td><td>'+(r.hsn||'')+'</td><td class="num">'+fmt(r.mrp)+'</td><td class="num">'+fmt(r.sale_price)+'</td><td class="num">'+fmt(r.purchase_price)+'</td><td class="num"><span class="badge badge-'+st+'">'+(r.qty||0)+'</span></td><td class="num">'+fmt(r.stock_value)+'</td><td><span class="badge badge-'+st+'">'+st.toUpperCase()+'</span></td></tr>'; }).join('');
-    summaryChips('stockSummary', [{l:'Value',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.stock_value)||0),0))},{l:'Items',v:rows.length},{l:'Low',v:rows.filter(r=>(parseFloat(r.qty)||0)<5&&(parseFloat(r.qty)||0)>=0).length},{l:'Negative',v:rows.filter(r=>(parseFloat(r.qty)||0)<0).length}]);
+    // `stock` is a point-in-time SNAPSHOT table (one date+store, rows replaced each sync).
+    // Label it from its OWN max(date) instead of filtering by the date picker.
+    const snapDates = rows.map(r=>r.date).filter(Boolean).sort();
+    const snapDate = snapDates.length ? snapDates[snapDates.length-1] : '';
+    summaryChips('stockSummary', [{l:'Snapshot',v:snapDate||'—'},{l:'Value',v:fmt(rows.reduce((s,r)=>s+(parseFloat(r.stock_value)||0),0))},{l:'Items',v:rows.length},{l:'Low',v:rows.filter(r=>(parseFloat(r.qty)||0)<5&&(parseFloat(r.qty)||0)>=0).length},{l:'Negative',v:rows.filter(r=>(parseFloat(r.qty)||0)<0).length}]);
 }
 
 function renderAtt(rows) {
     const tb = document.querySelector('#table-attendance tbody');
     if (!rows.length) { tb.innerHTML = emptyRow('attendance'); return; }
-    // Use pre-aggregated rows from Supabase
-    const sorted = rows.slice().sort((a,b) => (parseFloat(b.work_hours)||0) - (parseFloat(a.work_hours)||0));
+    // Collapse duplicate rows per employee (keep the row with the most data).
+    const byEmp = {};
+    rows.forEach(r => {
+        const key = (r.employee||'').trim() || ('row-' + Object.keys(byEmp).length);
+        const score = (parseFloat(r.work_hours)||0) + (r.check_in?1:0) + (r.check_out?1:0) + (r.leave?1:0);
+        if (!byEmp[key] || score > byEmp[key].__score) byEmp[key] = Object.assign({}, r, {__score: score});
+    });
+    const dedup = Object.values(byEmp);
+    const sorted = dedup.slice().sort((a,b) => (parseFloat(b.work_hours)||0) - (parseFloat(a.work_hours)||0));
     tb.innerHTML = sorted.map(r => {
         const name = r.employee || '';
         const ci = r.check_in || '-';
         const co = r.check_out || '-';
-        const work = (parseFloat(r.work_hours)||0).toFixed(1) + 'h';
+        const wh = parseFloat(r.work_hours)||0;
+        const work = wh.toFixed(1) + 'h';
         const brk = (parseFloat(r.break_hours)||0).toFixed(1) + 'h';
-        const leave = r.leave;
         let statusHTML = '';
-        if (leave) statusHTML = '<span class="badge badge-fail">Leave</span>';
-        else if (parseFloat(r.work_hours) >= 8) statusHTML = '<span class="badge badge-pass">Full Day</span>';
-        else if (parseFloat(r.work_hours) > 0) statusHTML = '<span class="badge badge-warn">Half Day</span>';
-        else statusHTML = '<span class="badge badge-fail">Absent</span>';
+        if (r.leave) statusHTML = '<span class="badge badge-fail">Leave</span>';
+        else if (wh >= 8) statusHTML = '<span class="badge badge-pass">Full Day</span>';
+        else if (wh > 0) statusHTML = '<span class="badge badge-warn">Half Day</span>';
+        else if (r.check_in && !r.check_out) statusHTML = '<span class="badge badge-warn">Not checked out</span>';
+        else if (!r.check_in && !r.check_out) statusHTML = '<span class="badge badge-low">No time recorded</span>';
+        else statusHTML = '<span class="badge badge-warn">Incomplete</span>';
         return '<tr><td>'+name+'</td><td>'+ci+'</td><td>'+co+'</td><td class="num">'+work+'</td><td class="num">'+brk+'</td><td>'+statusHTML+'</td></tr>';
     }).join('');
-    const present = rows.filter(r => !r.leave).length;
-    const onLeave = rows.filter(r => r.leave).length;
-    summaryChips('attendanceSummary', [{l:'Employees',v:rows.length},{l:'Present',v:present,cls:'positive'},{l:'Leave',v:onLeave,cls:onLeave?'negative':''},{l:'Total Hours',v:rows.reduce((s,r)=>s+(parseFloat(r.work_hours)||0),0).toFixed(1)+'h'},{l:'Total Break',v:rows.reduce((s,r)=>s+(parseFloat(r.break_hours)||0),0).toFixed(1)+'h'}]);
+    // Present = people with recorded work time OR a check-in. Never count blanks as Present.
+    const present = dedup.filter(r => (parseFloat(r.work_hours)||0) > 0 || r.check_in).length;
+    const onLeave = dedup.filter(r => r.leave).length;
+    summaryChips('attendanceSummary', [{l:'Employees',v:dedup.length},{l:'Present',v:present,cls:'positive'},{l:'Leave',v:onLeave,cls:onLeave?'negative':''},{l:'Total Hours',v:dedup.reduce((s,r)=>s+(parseFloat(r.work_hours)||0),0).toFixed(1)+'h'},{l:'Total Break',v:dedup.reduce((s,r)=>s+(parseFloat(r.break_hours)||0),0).toFixed(1)+'h'}]);
 }
 
 function renderTG(rows) {
