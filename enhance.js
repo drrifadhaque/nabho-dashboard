@@ -154,10 +154,17 @@
     var out = [];
     // 1) NabhoAudit -- the selected date's reconciliation result.
     if (ctx.recon > 0) {
-      var fails = ctx.reconFail;
-      out.push(sbState(fails > 0 ? 'REVIEW' : 'OK', fails > 0 ? 'warn' : 'ok',
-        fails > 0 ? ('Audited ' + dd + ' - ' + fails + ' discrepanc' + (fails === 1 ? 'y' : 'ies'))
-                  : ('Audited ' + dd + ' - all checks pass')));
+      // W1-9: a discrepancy is a hard FAIL only; WARN rows are advisories.
+      // Keeps this System Status tile consistent with the Discrepancies KPI.
+      var fails = ctx.reconFail, warns = ctx.reconWarn || 0;
+      if (fails > 0) {
+        out.push(sbState('REVIEW', 'warn',
+          'Audited ' + dd + ' - ' + fails + ' discrepanc' + (fails === 1 ? 'y' : 'ies')));
+      } else {
+        out.push(sbState('OK', warns > 0 ? 'warn' : 'ok',
+          warns > 0 ? ('Audited ' + dd + ' - passed with ' + warns + ' warning' + (warns === 1 ? '' : 's'))
+                    : ('Audited ' + dd + ' - all checks pass')));
+      }
     } else if (haveCore) {
       out.push(sbState('NO AUDIT', 'warn', 'Data present for ' + dd + ' but no audit ran', nbHardRefresh));
     } else {
@@ -195,7 +202,8 @@
       stock: (window._stockData || []).length,
       telegram: (window._telegramData || []).length,
       recon: reconRows.length,
-      reconFail: reconRows.filter(function (r) { return r.status !== 'PASS'; }).length
+      reconFail: reconRows.filter(function (r) { return r.status && r.status !== 'PASS' && r.status !== 'WARN'; }).length,
+      reconWarn: reconRows.filter(function (r) { return r.status === 'WARN'; }).length
     };
     var st = computeSystemStatus(ctx);
     items.forEach(function (item, i) {

@@ -227,8 +227,15 @@ function renderOverview(cb, vi, sl, st, rc, sm) {
     document.getElementById('kpi-stock-items').textContent = st.length+' items';
     setK('kpi-vendor', vi.reduce((s,r) => s+(parseFloat(r.amount)||0), 0));
     document.getElementById('kpi-vendor-count').textContent = vi.length+' invoices';
-    document.getElementById('kpi-discrepancies').textContent = rc.filter(r=>r.status!=='PASS').length;
-    document.getElementById('kpi-discrepancies-detail').textContent = rc.filter(r=>r.status!=='PASS').length===0?'All checks passed':rc.filter(r=>r.status!=='PASS').length+' issues';
+    // W1-9: the Discrepancies KPI must agree with the reconciliation table/cards.
+    // A row counts as a discrepancy ONLY on a hard FAIL. WARN (amber) rows are
+    // advisories, and an undefined status is never counted as a discrepancy.
+    const reconFailed = rc.filter(r => r.status && r.status !== 'PASS' && r.status !== 'WARN').length;
+    const reconWarn = rc.filter(r => r.status === 'WARN').length;
+    document.getElementById('kpi-discrepancies').textContent = reconFailed;
+    document.getElementById('kpi-discrepancies-detail').textContent = reconFailed === 0
+        ? (reconWarn > 0 ? 'All checks passed (' + reconWarn + ' warning' + (reconWarn === 1 ? '' : 's') + ')' : 'All checks passed')
+        : reconFailed + ' discrepanc' + (reconFailed === 1 ? 'y' : 'ies');
     setK('kpi-closing-cash', sm?.closing_cash||0);
     document.getElementById('kpi-closing-cash-detail').textContent = 'Opening: '+fmt(sm?.opening_cash||0);
     setK('kpi-closing-upi', sm?.closing_upi||0);
