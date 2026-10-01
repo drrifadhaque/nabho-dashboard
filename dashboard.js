@@ -477,9 +477,13 @@ async function renderCharts(sales) {
     
     // Sales trend
     try {
-        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // W1-6: anchor the trend window to the SELECTED date (curDate), not real-world today,
+        // so the last plotted point always equals the date the rest of the page shows.
+        const anchor = new Date(curDate + 'T00:00:00');
+        const thirtyDaysAgo = new Date(anchor); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
         const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
-        const {data} = await sb.from('daily_summaries').select('date,total_sales,total_profit').gte('date', fromDate).order('date');
+        const toDate = curDate;
+        const {data} = await sb.from('daily_summaries').select('date,total_sales,total_profit').gte('date', fromDate).lte('date', toDate).order('date');
         if (data && data.length) {
             const canvas = document.getElementById('chartSalesTrend');
             if (canvas) {
